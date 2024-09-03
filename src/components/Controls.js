@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
+import MathQuill, { addStyles as addMathquillStyles } from 'react-mathquill';
+import './Controls.css'; // Import the CSS file
 import { tokenize, parse, translateToGLSL } from './EquationParser';
 
+addMathquillStyles(); // Add MathQuill styles to your project
+
 function Controls({ onEquationChange }) {
-    const [userInput, setUserInput] = useState('z * z + c');
+    const [latexInput, setLatexInput] = useState('\\text{z}^2 + \\text{c}');
     const [error, setError] = useState(null);
     const timeoutRef = useRef(null);
 
-    const handleInputChange = (inputEquation) => {
-        setUserInput(inputEquation);
+    const handleInputChange = (mathField) => {
+        const inputEquation = mathField.latex();
+        setLatexInput(inputEquation);
 
         // Clear any existing timeout to prevent rapid re-evaluations
         clearTimeout(timeoutRef.current);
@@ -15,10 +20,16 @@ function Controls({ onEquationChange }) {
         // Set a new timeout to trigger parsing after a short delay
         timeoutRef.current = setTimeout(() => {
             try {
+                // Convert LaTeX to JavaScript readable format
+                const jsEquation = convertLatexToJS(inputEquation);
+
                 // Attempt to tokenize, parse, and translate the user input
-                const tokens = tokenize(inputEquation);
+                const tokens = tokenize(jsEquation);
+                console.log(tokens);
                 const syntaxTree = parse(tokens);
+                console.log(syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
+                console.log(glslCode);
 
                 // Update the equation and clear any previous errors
                 onEquationChange(glslCode);
@@ -30,49 +41,60 @@ function Controls({ onEquationChange }) {
         }, 300); // Adjust delay (in milliseconds) as needed for responsiveness
     };
 
+    // Convert LaTeX to a JavaScript-friendly equation string
+    const latexToFunctionMap = {
+        '\\sin': 'sin',
+        '\\cos': 'cos',
+        '\\tan': 'tan',
+        '\\exp': 'exp',
+        '\\log': 'log',
+        '\\sqrt': 'sqrt'
+    };
+
+    function convertLatexToJS(latex) {
+        // Replace LaTeX function names with JavaScript/GLSL equivalents
+        let jsEquation = latex;
+
+        // Replace all LaTeX functions in the string with corresponding GLSL functions
+        for (const [latexFunc, glslFunc] of Object.entries(latexToFunctionMap)) {
+            jsEquation = jsEquation.replace(new RegExp(latexFunc, 'g'), glslFunc);
+        }
+
+        // Remove LaTeX-specific formatting characters like \left and \right
+        jsEquation = jsEquation.replace(/\\left/g, '');
+        jsEquation = jsEquation.replace(/\\right/g, '');
+
+        // Remove \text{} commands and their contents
+        jsEquation = jsEquation.replace(/\\text\{([^}]*)\}/g, '$1'); // Keep the content inside \text{} and remove the \text command
+
+        // Replace LaTeX power operator '^' with '**'
+        jsEquation = jsEquation.replace(/\^/g, '**');
+
+        // Remove any remaining unsupported LaTeX commands
+        jsEquation = jsEquation.replace(/\\/g, ''); // Remove any remaining backslashes
+
+        return jsEquation;
+    }
+
     // Set initial equation and clear timeout on component unmount
     useEffect(() => {
-        handleInputChange('z * z + c');
+        handleInputChange({ latex: () => latexInput });
         return () => clearTimeout(timeoutRef.current);
-    }, []);
+    });
 
     return (
-        <div style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            zIndex: 2,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)', // Slightly darker background
-            padding: '20px', // Increased padding
-            borderRadius: '5px'
-        }}>
-            <label htmlFor="equation" style={{ color: 'white', display: 'block', marginBottom: '5px' }}>
+        <div className="controls">
+            <label htmlFor="equation" className="equation-label">
                 Fractal Equation:
             </label>
-            <input
-                id="equation"
-                type="text"
-                value={userInput}
-                onChange={(e) => handleInputChange(e.target.value)}
-                style={{
-                    width: '300px', // Increased width
-                    padding: '8px', // Increased padding
-                    borderRadius: '3px',
-                    border: 'none',
-                    fontSize: '16px' // Increased font size
-                }}
+            <MathQuill
+                latex={latexInput}
+                onChange={handleInputChange}
+                className="mathquill-input"
             />
 
-            {/* Display error message with improved styling */}
             {error && (
-                <div style={{
-                    color: '#ff4d4d', // Lighter red color
-                    marginTop: '10px',
-                    padding: '8px',
-                    backgroundColor: 'rgba(255, 0, 0, 0.1)', // Subtle red background
-                    border: '1px solid #ffcccc', // Light red border
-                    borderRadius: '3px'
-                }}>
+                <div className="error-message">
                     {error}
                 </div>
             )}

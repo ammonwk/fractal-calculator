@@ -10,7 +10,7 @@ function FractalCanvas({ equation }) {
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        const gl = canvas.getContext('webgl2');
+        const gl = canvas.getContext('webgl2', { antialias: true });
         if (!gl) {
             console.error('WebGL2 is not supported in your browser.');
             return;
@@ -41,7 +41,7 @@ function FractalCanvas({ equation }) {
             vec2 c = uv;
             vec2 z = vec2(0.0);
 
-            float iterations = 100.0;
+            float iterations = 1000.0;
             float smoothColor = 0.0;
 
             for (float i = 0.0; i < iterations; i++) {
@@ -149,7 +149,7 @@ function FractalCanvas({ equation }) {
                 const deltaX = (event.clientX - lastMousePosRef.current.x) / (zoom * canvas.width);
                 const deltaY = (event.clientY - lastMousePosRef.current.y) / (zoom * canvas.height);
                 setOffset(prevOffset => ({
-                    x: prevOffset.x + deltaX * 2.0,
+                    x: prevOffset.x + deltaX * 2.0 * (canvas.width / canvas.height),
                     y: prevOffset.y - deltaY * 2.0
                 }));
                 lastMousePosRef.current = { x: event.clientX, y: event.clientY };
