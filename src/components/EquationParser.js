@@ -1,9 +1,46 @@
 export function tokenize(input) {
     const tokens = [];
+    const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log']; // List of known LaTeX functions
+    const allowedVariables = ['z', 'c']; // List of allowed variables
     const tokenRegex = /\s*(\*\*|\\[a-zA-Z]+|[A-Za-z_]\w*|\d+(\.\d+)?|[+\-*/^()=,|{}]|\\left|\\right)\s*/g;
     let match;
+    let lastTokenWasSymbolOrNumber = false; // Track if the last token was a symbol or number
+
     while ((match = tokenRegex.exec(input)) !== null) {
-        tokens.push(match[1]);
+        const token = match[1];
+
+        // Check if the token is a known function or command
+        if (knownFunctions.includes(token)) {
+            // It's a known function, add it directly
+            if (lastTokenWasSymbolOrNumber) {
+                // If the last token was a symbol or number, insert an implicit multiplication
+                tokens.push('*');
+            }
+            tokens.push(token);
+            lastTokenWasSymbolOrNumber = false; // Reset flag after a function
+        } else if (/^[A-Za-z_]\w*$/.test(token)) {
+            // It's a variable or unknown symbol sequence, split into individual characters
+            for (let i = 0; i < token.length; i++) {
+                const currentChar = token[i];
+
+                // Check if the variable is allowed
+                if (!allowedVariables.includes(currentChar)) {
+                    throw new Error(`Either you're missing a multiplication sign, or you're trying to use an invalid variable (${currentChar}). Only 'z' and 'c' are allowed.`);
+                }
+
+                // If the last token was a symbol or number and this one is also a symbol, insert an implicit multiplication
+                if (lastTokenWasSymbolOrNumber) {
+                    tokens.push('*');
+                }
+
+                tokens.push(currentChar);
+                lastTokenWasSymbolOrNumber = true; // This is a symbol or number
+            }
+        } else {
+            // It's a number or operator
+            tokens.push(token);
+            lastTokenWasSymbolOrNumber = /^[A-Za-z_]\w*$/.test(token) || /\d/.test(token); // Update flag for symbols or numbers
+        }
     }
 
     // Check for any unrecognized characters

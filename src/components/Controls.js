@@ -6,7 +6,7 @@ import { tokenize, parse, translateToGLSL } from './EquationParser';
 addMathquillStyles(); // Add MathQuill styles to your project
 
 function Controls({ onEquationChange }) {
-    const [latexInput, setLatexInput] = useState('\\text{z}^2 + \\text{c}');
+    const [latexInput, setLatexInput] = useState('z^2 + c');
     const [error, setError] = useState(null);
     const timeoutRef = useRef(null);
 
@@ -45,6 +45,7 @@ function Controls({ onEquationChange }) {
 
     // Convert LaTeX to a JavaScript-friendly equation string
     const latexToFunctionMap = {
+        'cdot': '*',
         '\\sin': 'sin',
         '\\cos': 'cos',
         '\\tan': 'tan',

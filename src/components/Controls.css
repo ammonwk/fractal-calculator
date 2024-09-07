@@ -1,4 +1,3 @@
-/* Controls.css */
 .controls {
     position: absolute;
     top: 10px;
@@ -7,6 +6,7 @@
     background-color: rgba(204, 204, 204, 0.882);
     padding: 20px;
     border-radius: 5px;
+    width: 320px;
 }
 
 .equation-label {
@@ -39,4 +39,12 @@ math-field {
     background-color: rgba(255, 0, 0, 0.1);
     border: 1px solid #ffcccc;
     border-radius: 3px;
+    white-space: normal;
+    /* Allow text to wrap */
+    word-wrap: break-word;
+    /* Break long words to wrap properly */
+    max-width: 100%;
+    /* Prevent the error message from expanding beyond its container */
+    overflow-wrap: break-word;
+    /* Handle very long words */
 }
