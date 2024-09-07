@@ -5,6 +5,13 @@ export function tokenize(input) {
     while ((match = tokenRegex.exec(input)) !== null) {
         tokens.push(match[1]);
     }
+
+    // Check for any unrecognized characters
+    const unrecognizedMatch = input.match(/[^a-zA-Z0-9\s\\+\-*/^()=,|{}._]/);
+    if (unrecognizedMatch) {
+        throw new Error(`Invalid character '${unrecognizedMatch[0]}' found. Please remove or correct it.`);
+    }
+
     return tokens;
 }
 
@@ -12,6 +19,10 @@ export function parse(tokens) {
     let index = 0;
 
     function parseExpression() {
+        if (tokens.length === 0) {
+            throw new Error('Empty expression. Please provide a valid mathematical expression.');
+        }
+
         let node = parseTerm();
         while (index < tokens.length && (tokens[index] === '+' || tokens[index] === '-')) {
             const operator = tokens[index++];
@@ -42,12 +53,16 @@ export function parse(tokens) {
     }
 
     function parseExponent() {
+        if (index >= tokens.length) {
+            throw new Error(`Incomplete expression. An equation cannot end with a "${tokens[index-1]}" operator.`);
+        }
+
         let token = tokens[index++];
 
         if (token === '(' || token === '\\left(') {
             const node = parseExpression();
             if (tokens[index] !== ')' && tokens[index] !== '\\right)') {
-                throw new Error('Mismatched parentheses');
+                throw new Error('Mismatched parentheses. Ensure every "(" has a corresponding ")" in your equation.');
             }
             index++;
             return node;
@@ -68,6 +83,9 @@ export function parse(tokens) {
                         index++;
                     }
                 }
+                if (tokens[index] !== ')') {
+                    throw new Error(`Mismatched parentheses in function call for "${token}". Ensure every "(" has a corresponding ")" in your equation.`);
+                }
                 index++;
                 return { type: 'call', name: token, args };
             }
@@ -75,7 +93,7 @@ export function parse(tokens) {
         } else if (/\d/.test(token)) {
             return { type: 'number', value: parseFloat(token) };
         } else {
-            throw new Error(`Unexpected token: ${token}`);
+            throw new Error(`Error: It appears you have some invalid syntax in your equation.`);
         }
     }
 
@@ -98,13 +116,11 @@ export function translateToGLSL(node) {
                         };
                     case '*':
                         if (left.isComplex && right.isComplex) {
-                            // Complex multiplication
                             return {
                                 glsl: `vec2(${left.glsl}.x * ${right.glsl}.x - ${left.glsl}.y * ${right.glsl}.y, ${left.glsl}.x * ${right.glsl}.y + ${left.glsl}.y * ${right.glsl}.x)`,
                                 isComplex: true
                             };
                         } else if (left.isComplex || right.isComplex) {
-                            // Multiplication of a complex and a real number
                             return {
                                 glsl: `${left.isComplex ? left.glsl : `vec2(${left.glsl}, 0.0)`} * ${right.isComplex ? right.glsl : `vec2(${right.glsl}, 0.0)`}`,
                                 isComplex: true
@@ -113,7 +129,6 @@ export function translateToGLSL(node) {
                         break;
                     case '/':
                         if (left.isComplex && right.isComplex) {
-                            // Complex division
                             return {
                                 glsl: `vec2((${left.glsl}.x * ${right.glsl}.x + ${left.glsl}.y * ${right.glsl}.y) / (${right.glsl}.x * ${right.glsl}.x + ${right.glsl}.y * ${right.glsl}.y), (${left.glsl}.y * ${right.glsl}.x - ${left.glsl}.x * ${right.glsl}.y) / (${right.glsl}.x * ${right.glsl}.x + ${right.glsl}.y * ${right.glsl}.y))`,
                                 isComplex: true
@@ -123,21 +138,18 @@ export function translateToGLSL(node) {
                     case '**':
                         if (left.isComplex) {
                             if (right.isComplex || !Number.isInteger(parseFloat(right.glsl))) {
-                                // Complex exponentiation: z ** n where n is real or complex
                                 return handleComplexExponentiation(left, right);
                             } else {
-                                // Integer power of complex number
                                 return handleIntegerExponentiation(left, parseInt(right.glsl, 10));
                             }
                         } else {
-                            // Real number exponentiation
                             return {
                                 glsl: `pow(${left.glsl}, ${right.glsl})`,
                                 isComplex: false
                             };
                         }
                     default:
-                        throw new Error(`Unsupported operator: ${node.operator}`);
+                        throw new Error(`Unsupported operator "${node.operator}". Please use only supported operators (+, -, *, /, **).`);
                 }
                 return {
                     glsl: `(${left.glsl} ${node.operator} ${right.glsl})`,
@@ -146,7 +158,6 @@ export function translateToGLSL(node) {
             case 'sqrt':
                 const sqrtArg = processNode(node.argument);
                 if (sqrtArg.isComplex) {
-                    // Handle square root for complex numbers
                     return handleComplexSqrt(sqrtArg);
                 }
                 return {
@@ -157,7 +168,6 @@ export function translateToGLSL(node) {
                 const funcArg = processNode(node.argument);
                 if (['sin', 'cos', 'tan', 'exp', 'log', 'sqrt'].includes(node.name)) {
                     if (funcArg.isComplex) {
-                        // Handle complex numbers for each function where appropriate
                         return handleComplexFunction(node.name, funcArg);
                     }
                     return {
@@ -165,7 +175,7 @@ export function translateToGLSL(node) {
                         isComplex: false
                     };
                 } else {
-                    throw new Error(`Unsupported function: ${node.name}`);
+                    throw new Error(`Unsupported function "${node.name}". Please use one of the supported functions: sin, cos, tan, exp, log, sqrt.`);
                 }
             case 'variable':
                 if (node.name === 'z' || node.name === 'c') {
@@ -190,13 +200,19 @@ export function translateToGLSL(node) {
                     isComplex: false
                 };
             default:
-                throw new Error(`Unsupported node type: ${node.type}`);
+                throw new Error(`Unsupported node type "${node.type}". This likely indicates a bug in the parser.`);
         }
     }
 
     const result = processNode(node);
+
+    if (result.glsl.includes("undefined")) {
+        throw new Error('Internal error: Undefined in generated GLSL code. Please check your expression for mistakes.');
+    }
+
     return result.glsl;
 }
+
 
 // Helper function to handle complex exponentiation
 function handleComplexExponentiation(base, exponent) {

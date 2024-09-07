@@ -21,7 +21,7 @@
     border-radius: 3px;
     border: none;
     font-size: 16px;
-    background-color: rgba(190, 190, 190, 0.181);
+    background-color: rgba(255, 255, 255, 0.181);
     color: rgb(0, 0, 0);
     --caret-color: white;
     /* Note: You might need to use a more specific selector for caret color */
