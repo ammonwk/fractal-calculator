@@ -1,5 +1,3 @@
-// EquationParser.js
-
 export function tokenize(input) {
     const tokens = [];
     const tokenRegex = /\s*(\*\*|\\[a-zA-Z]+|[A-Za-z_]\w*|\d+(\.\d+)?|[+\-*/^()=,|{}]|\\left|\\right)\s*/g;
@@ -56,7 +54,7 @@ export function parse(tokens) {
         } else if (token === '\\sqrt') {
             const argument = parseFactor();
             return { type: 'sqrt', argument };
-        } else if (/\\(sin|cos|tan|exp|log|sqrt)/.test(token)) {
+        } else if (/(sin|cos|tan|exp|log|sqrt)/.test(token)) {
             const functionName = token.replace('\\', '');
             const argument = parseFactor();
             return { type: 'function', name: functionName, argument };
@@ -231,14 +229,6 @@ function handleIntegerExponentiation(base, n) {
     }
 }
 
-// Helper function for complex square root
-function handleComplexSqrt(arg) {
-    return {
-        glsl: `vec2(sqrt((length(${arg.glsl}) + ${arg.glsl}.x) / 2.0), sign(${arg.glsl}.y) * sqrt((length(${arg.glsl}) - ${arg.glsl}.x) / 2.0))`,
-        isComplex: true
-    };
-}
-
 // Helper function to handle functions applied to complex numbers
 function handleComplexFunction(name, arg) {
     switch (name) {
@@ -246,11 +236,26 @@ function handleComplexFunction(name, arg) {
             return { glsl: `vec2(sin(${arg.glsl}.x) * cosh(${arg.glsl}.y), cos(${arg.glsl}.x) * sinh(${arg.glsl}.y))`, isComplex: true };
         case 'cos':
             return { glsl: `vec2(cos(${arg.glsl}.x) * cosh(${arg.glsl}.y), -sin(${arg.glsl}.x) * sinh(${arg.glsl}.y))`, isComplex: true };
+        case 'tan':
+            // tan(z) = sin(z) / cos(z)
+            const sinArg = handleComplexFunction('sin', arg).glsl;
+            const cosArg = handleComplexFunction('cos', arg).glsl;
+            return { glsl: `(${sinArg}) / (${cosArg})`, isComplex: true };
         case 'exp':
             return { glsl: `vec2(exp(${arg.glsl}.x) * cos(${arg.glsl}.y), exp(${arg.glsl}.x) * sin(${arg.glsl}.y))`, isComplex: true };
         case 'log':
             return { glsl: `vec2(log(length(${arg.glsl})), atan(${arg.glsl}.y, ${arg.glsl}.x))`, isComplex: true };
+        case 'sqrt':
+            return handleComplexSqrt(arg);
         default:
             throw new Error(`Function ${name} is not supported for complex numbers.`);
     }
+}
+
+// Helper function for complex square root
+function handleComplexSqrt(arg) {
+    return {
+        glsl: `vec2(sqrt((length(${arg.glsl}) + ${arg.glsl}.x) / 2.0), sign(${arg.glsl}.y) * sqrt((length(${arg.glsl}) - ${arg.glsl}.x) / 2.0))`,
+        isComplex: true
+    };
 }

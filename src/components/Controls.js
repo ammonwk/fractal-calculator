@@ -24,12 +24,14 @@ function Controls({ onEquationChange }) {
                 const jsEquation = convertLatexToJS(inputEquation);
 
                 // Attempt to tokenize, parse, and translate the user input
+                console.log("inputEquation: ", inputEquation);
+                console.log("jsEquation: ", jsEquation);
                 const tokens = tokenize(jsEquation);
-                console.log(tokens);
+                console.log("tokens: ", tokens);
                 const syntaxTree = parse(tokens);
-                console.log(syntaxTree);
+                console.log("syntaxTree: ", syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
-                console.log(glslCode);
+                console.log("glslCode: ", glslCode);
 
                 // Update the equation and clear any previous errors
                 onEquationChange(glslCode);
@@ -60,6 +62,12 @@ function Controls({ onEquationChange }) {
             jsEquation = jsEquation.replace(new RegExp(latexFunc, 'g'), glslFunc);
         }
 
+        // Handle fractions by converting "\frac{a}{b}" to "(a / b)"
+        jsEquation = jsEquation.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1 / $2)');
+
+        // Convert "\sqrt{z}" to "sqrt(z)"
+        jsEquation = jsEquation.replace(/sqrt\{([^}]*)\}/g, 'sqrt($1)');
+
         // Remove LaTeX-specific formatting characters like \left and \right
         jsEquation = jsEquation.replace(/\\left/g, '');
         jsEquation = jsEquation.replace(/\\right/g, '');
@@ -73,6 +81,7 @@ function Controls({ onEquationChange }) {
         // Remove any remaining unsupported LaTeX commands
         jsEquation = jsEquation.replace(/\\/g, ''); // Remove any remaining backslashes
 
+        console.log(latex, '=>', jsEquation);
         return jsEquation;
     }
 
