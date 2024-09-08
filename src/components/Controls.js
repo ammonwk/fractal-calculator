@@ -1,30 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import MathQuill, { addStyles as addMathquillStyles } from 'react-mathquill';
-import './Controls.css'; // Import the CSS file
 import { tokenize, parse, translateToGLSL } from './EquationParser';
 
-addMathquillStyles(); // Add MathQuill styles to your project
+addMathquillStyles();
 
 function Controls({ onEquationChange }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
     const [error, setError] = useState(null);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const timeoutRef = useRef(null);
+
+    // Inject custom styles dynamically to override MathQuill styles
+    useEffect(() => {
+        const style = document.createElement("style");
+        style.innerHTML = `
+      .mq-editable-field,
+      .mq-editable-field * {
+        color: white !important;
+        caret-color: white !important;
+      }
+
+      .mq-cursor {
+        border-color: white !important;
+      }
+    `;
+        document.head.appendChild(style);
+
+        return () => {
+            document.head.removeChild(style); // Clean up the style when the component unmounts
+        };
+    }, []);
 
     const handleInputChange = (mathField) => {
         const inputEquation = mathField.latex();
         setLatexInput(inputEquation);
 
-        // Clear any existing timeout to prevent rapid re-evaluations
         clearTimeout(timeoutRef.current);
 
-        // Set a new timeout to trigger parsing after a short delay
         timeoutRef.current = setTimeout(() => {
             try {
-                // Convert LaTeX to JavaScript readable format
-                const jsEquation = convertLatexToJS(inputEquation);
 
-                // Attempt to tokenize, parse, and translate the user input
                 console.log("inputEquation: ", inputEquation);
+                const jsEquation = convertLatexToJS(inputEquation);
                 console.log("jsEquation: ", jsEquation);
                 const tokens = tokenize(jsEquation);
                 console.log("tokens: ", tokens);
@@ -33,79 +50,79 @@ function Controls({ onEquationChange }) {
                 const glslCode = translateToGLSL(syntaxTree);
                 console.log("glslCode: ", glslCode);
 
-                // Update the equation and clear any previous errors
                 onEquationChange(glslCode);
                 setError(null);
             } catch (error) {
-                // Catch any parsing errors and set the error message
                 setError(error.message);
             }
-        }, 300); // Adjust delay (in milliseconds) as needed for responsiveness
-    };
-
-    // Convert LaTeX to a JavaScript-friendly equation string
-    const latexToFunctionMap = {
-        'cdot': '*',
-        '\\sin': 'sin',
-        '\\cos': 'cos',
-        '\\tan': 'tan',
-        '\\exp': 'exp',
-        '\\log': 'log',
-        '\\sqrt': 'sqrt'
+        }, 300);
     };
 
     function convertLatexToJS(latex) {
-        // Replace LaTeX function names with JavaScript/GLSL equivalents
         let jsEquation = latex;
+        const latexToFunctionMap = {
+            'cdot': '*',
+            '\\sin': 'sin',
+            '\\cos': 'cos',
+            '\\tan': 'tan',
+            '\\exp': 'exp',
+            '\\log': 'log',
+            '\\sqrt': 'sqrt'
+        };
 
-        // Replace all LaTeX functions in the string with corresponding GLSL functions
+        // Replace LaTeX functions with JavaScript equivalents
         for (const [latexFunc, glslFunc] of Object.entries(latexToFunctionMap)) {
             jsEquation = jsEquation.replace(new RegExp(latexFunc, 'g'), glslFunc);
         }
 
-        // Handle fractions by converting "\frac{a}{b}" to "(a / b)"
+        // Convert fractions
         jsEquation = jsEquation.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1 / $2)');
-
-        // Convert "\sqrt{z}" to "sqrt(z)"
-        jsEquation = jsEquation.replace(/sqrt\{([^}]*)\}/g, 'sqrt($1)');
-
-        // Remove LaTeX-specific formatting characters like \left and \right
+        
+        // Remove \left and \right
         jsEquation = jsEquation.replace(/\\left/g, '');
         jsEquation = jsEquation.replace(/\\right/g, '');
+        
+        // Remove \text
+        jsEquation = jsEquation.replace(/\\text\{([^}]*)\}/g, '$1');
 
-        // Remove \text{} commands and their contents
-        jsEquation = jsEquation.replace(/\\text\{([^}]*)\}/g, '$1'); // Keep the content inside \text{} and remove the \text command
+        // Replace exponentiation and handle grouping
+        jsEquation = jsEquation.replace(/\{([^}]*)\}/g, '($1)'); // Replace all curly braces with parentheses
+        jsEquation = jsEquation.replace(/\^/g, '**'); // Replace ^ with ** for exponentiation
+        
+        // Remove backslashes
+        jsEquation = jsEquation.replace(/\\/g, '');
 
-        // Replace LaTeX power operator '^' with '**'
-        jsEquation = jsEquation.replace(/\^/g, '**');
+        // Convert curly braces to parentheses
+        jsEquation = jsEquation.replace(/\{/g, '(');
+        jsEquation = jsEquation.replace(/\}/g, ')');
 
-        // Remove any remaining unsupported LaTeX commands
-        jsEquation = jsEquation.replace(/\\/g, ''); // Remove any remaining backslashes
-
-        console.log(latex, '=>', jsEquation);
         return jsEquation;
     }
 
-    // Set initial equation and clear timeout on component unmount
     useEffect(() => {
         handleInputChange({ latex: () => latexInput });
         return () => clearTimeout(timeoutRef.current);
-    });
+    }, []);
 
     return (
-        <div className="controls">
-            <label htmlFor="equation" className="equation-label">
-                Fractal Equation:
-            </label>
-            <MathQuill
-                latex={latexInput}
-                onChange={handleInputChange}
-                className="mathquill-input"
-            />
-
-            {error && (
-                <div className="error-message">
-                    {error}
+        <div className={`absolute top-16 left-0 z-40 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-800 text-white shadow-md h-full flex flex-col`}>
+            <button
+                className="p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+                {isCollapsed ? '>' : '< < <'}
+            </button>
+            {!isCollapsed && (
+                <div className="p-4 space-y-4">
+                    <label htmlFor="equation" className="block text-sm font-semibold">
+                        Fractal Equation:
+                    </label>
+                    <MathQuill
+                        latex={latexInput}
+                        onChange={handleInputChange}
+                        className="mathquill-input p-2 w-full bg-gray-700 rounded text-white"
+                    />
+                    {error && <div className="text-red-400 mt-2">{error}</div>}
                 </div>
             )}
         </div>

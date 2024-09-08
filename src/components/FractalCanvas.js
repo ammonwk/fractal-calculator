@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 
 function FractalCanvas({ equation }) {
     const canvasRef = useRef();
-    const [zoom, setZoom] = useState(1.0);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(0.9);
+    const [offset, setOffset] = useState({ x: 0.7, y: -0.12 });
     const isDraggingRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
     const animationFrameIdRef = useRef(null); // Reference to store the animation frame ID
@@ -198,7 +198,7 @@ function FractalCanvas({ equation }) {
         };
     }, [offset, zoom, equation]);
 
-    return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
+    return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
 export default FractalCanvas;

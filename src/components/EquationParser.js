@@ -25,7 +25,7 @@ export function tokenize(input) {
 
                 // Check if the variable is allowed
                 if (!allowedVariables.includes(currentChar)) {
-                    throw new Error(`Either you're missing a multiplication sign, or you're trying to use an invalid variable (${currentChar}). Only 'z' and 'c' are allowed.`);
+                    throw new Error(`Either you're missing a multiplication sign next to a function, or you're trying to use an invalid variable (${currentChar}). Only 'z' and 'c' are allowed.`);
                 }
 
                 // If the last token was a symbol or number and this one is also a symbol, insert an implicit multiplication
@@ -226,8 +226,10 @@ export function translateToGLSL(node) {
                     isComplex: false
                 };
             case 'number':
+                // Convert the number to a float if it is an integer
+                const isInteger = Number.isInteger(node.value);
                 return {
-                    glsl: node.value.toString(),
+                    glsl: isInteger ? `${node.value}.0` : node.value.toString(),
                     isComplex: false
                 };
             case 'call':
