@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
-function FractalCanvas({ equation }) {
+function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, setOffset }) {
     const canvasRef = useRef();
-    const [zoom, setZoom] = useState(0.9);
-    const [offset, setOffset] = useState({ x: 0.7, y: -0.12 });
     const isDraggingRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
-    const animationFrameIdRef = useRef(null); // Reference to store the animation frame ID
+    const animationFrameIdRef = useRef(null);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -24,7 +22,6 @@ function FractalCanvas({ equation }) {
         }`;
 
         // Fragment Shader
-        console.log(equation);
         const fragmentShaderSource = `#version 300 es
         precision highp float;
 
@@ -41,12 +38,13 @@ function FractalCanvas({ equation }) {
             vec2 c = uv;
             vec2 z = vec2(0.0);
 
-            float iterations = 1000.0;
+            float iterations = ${iterations}.0; // Dynamic iterations from props
             float smoothColor = 0.0;
+            float cutoff = ${cutoff}.0; // Dynamic cutoff from props
 
             for (float i = 0.0; i < iterations; i++) {
-                z = ${equation};  // Dynamic equation
-                if (length(z) > 4.0) {
+                z = ${equation};  // Dynamic equation from props
+                if (length(z) > cutoff) { // Use dynamic cutoff
                     smoothColor = i - log(log(length(z))) / log(2.0);
                     float r = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 0.0);
                     float g = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 2.0);
@@ -196,7 +194,7 @@ function FractalCanvas({ equation }) {
             gl.deleteShader(vertexShader);
             gl.deleteShader(fragmentShader);
         };
-    }, [offset, zoom, equation]);
+    }, [offset, zoom, equation, iterations, cutoff]);
 
     return <canvas ref={canvasRef} className="w-full h-full" />;
 }

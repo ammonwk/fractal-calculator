@@ -4,8 +4,10 @@ import { tokenize, parse, translateToGLSL } from './EquationParser';
 
 addMathquillStyles();
 
-function Controls({ onEquationChange }) {
+function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onResetView }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
+    const [iterations, setIterations] = useState(1000);
+    const [cutoff, setCutoff] = useState(4.0);
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const timeoutRef = useRef(null);
@@ -39,16 +41,10 @@ function Controls({ onEquationChange }) {
 
         timeoutRef.current = setTimeout(() => {
             try {
-
-                console.log("inputEquation: ", inputEquation);
                 const jsEquation = convertLatexToJS(inputEquation);
-                console.log("jsEquation: ", jsEquation);
                 const tokens = tokenize(jsEquation);
-                console.log("tokens: ", tokens);
                 const syntaxTree = parse(tokens);
-                console.log("syntaxTree: ", syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
-                console.log("glslCode: ", glslCode);
 
                 onEquationChange(glslCode);
                 setError(null);
@@ -77,18 +73,18 @@ function Controls({ onEquationChange }) {
 
         // Convert fractions
         jsEquation = jsEquation.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1 / $2)');
-        
+
         // Remove \left and \right
         jsEquation = jsEquation.replace(/\\left/g, '');
         jsEquation = jsEquation.replace(/\\right/g, '');
-        
+
         // Remove \text
         jsEquation = jsEquation.replace(/\\text\{([^}]*)\}/g, '$1');
 
         // Replace exponentiation and handle grouping
         jsEquation = jsEquation.replace(/\{([^}]*)\}/g, '($1)'); // Replace all curly braces with parentheses
         jsEquation = jsEquation.replace(/\^/g, '**'); // Replace ^ with ** for exponentiation
-        
+
         // Remove backslashes
         jsEquation = jsEquation.replace(/\\/g, '');
 
@@ -103,6 +99,18 @@ function Controls({ onEquationChange }) {
         handleInputChange({ latex: () => latexInput });
         return () => clearTimeout(timeoutRef.current);
     }, []);
+
+    const handleIterationsChange = (event) => {
+        const newIterations = parseInt(event.target.value, 10);
+        setIterations(newIterations);
+        onIterationsChange(newIterations);
+    };
+
+    const handleCutoffChange = (event) => {
+        const newCutoff = parseFloat(event.target.value);
+        setCutoff(newCutoff);
+        onCutoffChange(newCutoff);
+    };
 
     return (
         <div className={`absolute top-16 left-0 z-40 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-800 text-white shadow-md h-full flex flex-col`}>
@@ -123,6 +131,50 @@ function Controls({ onEquationChange }) {
                         className="mathquill-input p-2 w-full bg-gray-700 rounded text-white"
                     />
                     {error && <div className="text-red-400 mt-2">{error}</div>}
+
+                    <div className="mt-4">
+                        <label htmlFor="iterations" className="text-sm font-semibold flex items-center">
+                            Iterations
+                            <span className="tooltip">
+                                <span className="tooltip-icon">i</span>
+                                <span className="tooltip-text">Controls the number of iterations for the fractal calculation. Higher values produce more detail but can be slower to compute.</span>
+                            </span>
+                        </label>
+                        <input
+                            id="iterations"
+                            type="number"
+                            min="1"
+                            value={iterations}
+                            onChange={handleIterationsChange}
+                            className="w-full mt-1 p-2 bg-gray-700 rounded text-white"
+                        />
+                    </div>
+
+                    <div className="mt-4">
+                        <label htmlFor="cutoff" className="text-sm font-semibold flex items-center">
+                            Cut-off Value
+                            <span className="tooltip">
+                                <span className="tooltip-icon">i</span>
+                                <span className="tooltip-text">Sets the escape radius or threshold for the fractal calculation. Points beyond this value are considered outside the set.</span>
+                            </span>
+                        </label>
+                        <input
+                            id="cutoff"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={cutoff}
+                            onChange={handleCutoffChange}
+                            className="w-full mt-1 p-2 bg-gray-700 rounded text-white"
+                        />
+                    </div>
+
+                    <button
+                        onClick={onResetView}
+                        className="mt-4 p-2 bg-blue-500 rounded text-white hover:bg-blue-400"
+                    >
+                        Return to Default View
+                    </button>
                 </div>
             )}
         </div>
