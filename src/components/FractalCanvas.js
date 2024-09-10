@@ -82,6 +82,12 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
         }
 
+        vec2 complexExp(vec2 z) {
+            // z = (x, y) where x is the real part and y is the imaginary part
+            float exp_real = exp(z.x); // Compute e^x
+            return vec2(exp_real * cos(z.y), exp_real * sin(z.y)); // e^(x + iy) = e^x * (cos(y) + i*sin(y))
+        }
+
         void main() {
             vec2 uv = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
             uv.x *= u_resolution.x / u_resolution.y;
@@ -95,7 +101,7 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             float cutoff = ${cutoff}.0;
 
             for (float i = 0.0; i < iterations; i++) {
-                z = ${equation};
+                ${equation}
                 if (length(z) > cutoff) {
                     smoothColor = i - log(log(length(z))) / log(2.0);
 

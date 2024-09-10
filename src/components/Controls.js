@@ -41,10 +41,15 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
 
         timeoutRef.current = setTimeout(() => {
             try {
+                console.log("inputEquation: ", inputEquation);
                 const jsEquation = convertLatexToJS(inputEquation);
+                console.log("jsEquation: ", jsEquation);
                 const tokens = tokenize(jsEquation);
+                console.log("tokens: ", tokens);
                 const syntaxTree = parse(tokens);
+                console.log("syntaxTree: ", syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
+                console.log("glslCode: ", glslCode);
 
                 onEquationChange(glslCode);
                 setError(null);
