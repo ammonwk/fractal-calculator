@@ -1,7 +1,7 @@
-export function tokenize(input) {
+export function tokenize(input, variables) {
     const tokens = [];
     const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log']; // List of known LaTeX functions
-    const allowedVariables = ['z', 'c']; // List of allowed variables
+    const allowedVariables = ['z', 'c', ...variables]; // List of allowed variables
     const tokenRegex = /\s*(\*\*|\\[a-zA-Z]+|[A-Za-z_]\w*|\d+(\.\d+)?|[+\-*/^()=,|{}]|\\left|\\right)\s*/g;
     let match;
     let lastTokenType = null; // Track the type of the last token
@@ -197,12 +197,20 @@ export function translateToGLSL(node) {
                                 `vec2(${left.glsl}.x * ${right.glsl}.x - ${left.glsl}.y * ${right.glsl}.y, ${left.glsl}.x * ${right.glsl}.y + ${left.glsl}.y * ${right.glsl}.x)`,
                                 true
                             );
-                        } else if (left.isComplex || right.isComplex) {
+                        } else if (left.isComplex) {
+                            // Handle multiplication of complex number by scalar
                             return cacheExpression(
-                                `${left.isComplex ? left.glsl : `vec2(${left.glsl}, 0.0)`} * ${right.isComplex ? right.glsl : `vec2(${right.glsl}, 0.0)`}`,
+                                `vec2(${left.glsl}.x * ${right.glsl}, ${left.glsl}.y * ${right.glsl})`,
+                                true
+                            );
+                        } else if (right.isComplex) {
+                            // Handle multiplication of scalar by complex number
+                            return cacheExpression(
+                                `vec2(${right.glsl}.x * ${left.glsl}, ${right.glsl}.y * ${left.glsl})`,
                                 true
                             );
                         }
+                        // Handle multiplication of two scalars
                         return cacheExpression(`(${left.glsl} * ${right.glsl})`, false);
                     case '/':
                         if (left.isComplex && right.isComplex) {

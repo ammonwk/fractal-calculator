@@ -8,16 +8,10 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
 
     // Define the color options as an object
     const colorOptions = {
-        'Rainbow 1': `
+        'Rainbow': `
         float r = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 0.0);
         float g = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 2.0);
         float b = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 4.0);
-        outColor = vec4(r, g, b, 1.0);
-    `,
-        'Rainbow 2': `
-        float r = 0.5 + 0.5 * cos(smoothColor * 0.15 + 0.0);
-        float g = 0.5 + 0.5 * cos(smoothColor * 0.15 + 2.0);
-        float b = 0.5 + 0.5 * cos(smoothColor * 0.15 + 4.0);
         outColor = vec4(r, g, b, 1.0);
     `,
         'Snowflake': `
@@ -101,7 +95,7 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             float cutoff = ${cutoff}.0;
 
             for (float i = 0.0; i < iterations; i++) {
-                ${equation}
+                ${equation};
                 if (length(z) > cutoff) {
                     smoothColor = i - log(log(length(z))) / log(2.0);
 

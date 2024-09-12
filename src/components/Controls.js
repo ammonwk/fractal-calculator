@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import MathQuill, { addStyles as addMathquillStyles } from 'react-mathquill';
 import { tokenize, parse, translateToGLSL } from './EquationParser';
+import VariableControl from './VariableControl';
 
 addMathquillStyles();
 
-function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColorSchemeChange, onResetView }) {
+function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColorSchemeChange, onResetView, variables, onVariableChange, onVariableDelete, onNewVariable }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
     const [iterations, setIterations] = useState(1000);
     const [cutoff, setCutoff] = useState(4.0);
@@ -41,20 +42,38 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
 
         timeoutRef.current = setTimeout(() => {
             try {
-                console.log("inputEquation: ", inputEquation);
+                // console.log("inputEquation: ", inputEquation);
                 const jsEquation = convertLatexToJS(inputEquation);
-                console.log("jsEquation: ", jsEquation);
-                const tokens = tokenize(jsEquation);
-                console.log("tokens: ", tokens);
-                const syntaxTree = parse(tokens);
-                console.log("syntaxTree: ", syntaxTree);
+                // console.log("jsEquation: ", jsEquation);
+                const tokens = tokenize(jsEquation, Object.keys(variables));
+                // console.log("tokens: ", tokens);
+
+                // Swap out any member of variables with the variable's value
+                const replacedTokens = tokens.map(token => {
+                    if (variables.hasOwnProperty(token)) {
+                        return variables[token].value; // Replace token with its value
+                    }
+                    return token; // Leave token unchanged if it's not in variables
+                });
+
+                console.log("replacedTokens: ", replacedTokens);
+                const syntaxTree = parse(replacedTokens);
+                // console.log("syntaxTree: ", syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
                 console.log("glslCode: ", glslCode);
 
                 onEquationChange(glslCode);
                 setError(null);
             } catch (error) {
-                setError(error.message);
+                if (error.message.includes("Invalid variable")) {
+                    const variableName = error.message.match(/'([^']+)'/)[1];
+                    setError({
+                        message: `No variable "${variableName}" has been declared.`,
+                        variableName
+                    });
+                } else {
+                    setError({ message: error.message });
+                }
             }
         }, 300);
     };
@@ -91,7 +110,7 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
     useEffect(() => {
         handleInputChange({ latex: () => latexInput });
         return () => clearTimeout(timeoutRef.current);
-    }, []);
+    }, [variables]);
 
     const handleIterationsChange = (event) => {
         const newIterations = parseInt(event.target.value, 10);
@@ -111,8 +130,13 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
         onColorSchemeChange(newColorScheme);
     };
 
+    const handleCreateVariable = (variableName) => {
+        onNewVariable(variableName);
+        setError(null);
+    };
+
     return (
-        <div className={`absolute top-16 left-0 z-40 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-800 text-white shadow-md h-full flex flex-col`}>
+        <div className={`relative flex-none transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-800 text-white shadow-md h-full flex flex-col overflow-hidden`}>
             <button
                 className="p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition"
                 onClick={() => setIsCollapsed(!isCollapsed)}
@@ -120,8 +144,8 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
                 {isCollapsed ? '>' : '< < <'}
             </button>
             {!isCollapsed && (
-                <div className="p-4 space-y-4">
-                    <label htmlFor="equation" className="block text-sm font-semibold">
+                <div className="p-4 space-y-4 overflow-y-auto">
+                    <label htmlFor="equation" className="block text-sm font-semibold pt-6">
                         Fractal Equation:
                     </label>
                     <MathQuill
@@ -129,8 +153,30 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
                         onChange={handleInputChange}
                         className="mathquill-input p-2 w-full bg-gray-700 rounded text-white"
                     />
-                    {error && <div className="text-red-400 mt-2">{error}</div>}
+                    {error && (
+                        <div className="text-red-400 mt-2">
+                            {error.message}
+                            {error.variableName && (
+                                <button
+                                    className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-400"
+                                    onClick={() => handleCreateVariable(error.variableName)}
+                                >
+                                    Create Variable
+                                </button>
+                            )}
+                        </div>
+                    )}
 
+                    {/* Variable Controls */}
+                    {Object.keys(variables).map((variableName) => (
+                        <VariableControl
+                            key={variableName}
+                            name={variableName}
+                            variable={variables[variableName]}
+                            onVariableChange={onVariableChange}
+                            onVariableDelete={onVariableDelete}
+                        />
+                    ))}
                     <div className="mt-4">
                         <label htmlFor="iterations" className="text-sm font-semibold flex items-center">
                             Iterations
@@ -178,8 +224,7 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
                             onChange={handleColorSchemeChange}
                             className="w-full mt-1 p-2 bg-gray-700 rounded text-white"
                         >
-                            <option>Rainbow 1</option>
-                            <option>Rainbow 2</option>
+                            <option>Rainbow</option>
                             <option>Snowflake</option>
                             <option>Watercolors</option>
                             <option>Night Sky</option>
@@ -193,6 +238,7 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
                     >
                         Return to Default View
                     </button>
+
                 </div>
             )}
         </div>

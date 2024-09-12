@@ -74,3 +74,88 @@ canvas {
 tooltip-text {
   font-size: 1.2em;
 }
+
+/* Hide the up/down arrows on all number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  /* Firefox */
+}
+
+.trash-button {
+  background-color: #ef4444;
+  /* Bright red background */
+  color: white;
+  /* White icon color */
+  padding: 0.4rem;
+  /* Slightly larger padding */
+  border: none;
+  border-radius: 0.25rem;
+  /* Rounded corners */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.1s;
+  /* Smooth transitions */
+}
+
+.trash-button:hover {
+  background-color: #dc2626;
+  /* Darker red on hover */
+  transform: scale(1.05);
+  /* Slightly larger on hover */
+}
+
+.dropdown-button {
+  background-color: #1f2937;
+  /* Darker background to match site's color scheme */
+  color: #d1d5db;
+  /* Light gray text color to match the site's theme */
+  padding: 0.3rem 0.4rem;
+  /* Adjusted padding for a more compact look */
+  border: 1px solid #374151;
+  /* Border to match dark theme */
+  border-radius: 0.25rem;
+  /* Rounded corners */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.1s;
+  /* Smooth transitions */
+}
+
+.dropdown-button:hover {
+  background-color: #374151;
+  /* Slightly darker gray on hover */
+  color: #ffffff;
+  /* White text color on hover */
+  transform: scale(1.05);
+  /* Slightly enlarge on hover */
+}
+
+/* WebKit-based browsers (Chrome, Safari) */
+::-webkit-scrollbar {
+  width: 8px;
+  /* Width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #333;
+  /* Background color of the scrollbar track */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #666;
+  /* Color of the scrollbar thumb */
+  border-radius: 8px;
+  /* Rounded corners for scrollbar thumb */
+  border: 2px solid #333;
+  /* Border around the scrollbar thumb */
+}
