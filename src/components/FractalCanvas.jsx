@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import PropTypes from 'prop-types';
 
 function FractalCanvas({
     equation,
@@ -587,37 +586,6 @@ function FractalCanvas({
             gl.deleteTexture(fractalTexture);
         };
     }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, setZoom, setOffset]); // Ensure dependencies are correct
-
-    // Define PropTypes for better type checking and documentation
-    FractalCanvas.propTypes = {
-        equation: PropTypes.string.isRequired,
-        iterations: PropTypes.number.isRequired,
-        cutoff: PropTypes.number.isRequired,
-        zoom: PropTypes.number.isRequired,
-        offset: PropTypes.shape({
-            x: PropTypes.number.isRequired,
-            y: PropTypes.number.isRequired
-        }).isRequired,
-        setZoom: PropTypes.func.isRequired,
-        setOffset: PropTypes.func.isRequired,
-        colorScheme: PropTypes.oneOf([
-            'Rainbow',
-            'Snowflake',
-            'Watercolors',
-            'Twinkling Stars',
-            'Psychedelics',
-            'Fire and Embers',
-            'Ocean Waves',
-            'Aurora Borealis',
-            'The Matrix'
-        ]).isRequired,
-        fxaaIntensity: PropTypes.number // New prop
-    };
-
-    // Define default props
-    FractalCanvas.defaultProps = {
-        fxaaIntensity: 1.0 // Default intensity is 1 (standard FXAA)
-    };
 
     return <canvas ref={canvasRef}></canvas>; // You should render the canvas
 
