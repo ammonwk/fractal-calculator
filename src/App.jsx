@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import FractalCanvas from './components/FractalCanvas';
-import Controls from './components/Controls';
-import TopBar from './components/TopBar';
+import FractalCanvas from './components/FractalCanvas/FractalCanvas';
+import Controls from './components/Controls/Controls';
+import TopBar from './components/Controls/TopBar';
 import './App.css';
 
 function App() {
@@ -12,7 +12,7 @@ function App() {
   const [offset, setOffset] = useState({ x: 0.7, y: -0.12 });
   const [colorScheme, setColorScheme] = useState('Rainbow');
   const [variables, setVariables] = useState({});
-  const [fxaaIntensity, setFxaaIntensity] = useState(1.75); // New state for sharpness
+  const [fxaaIntensity, setFxaaIntensity] = useState(1.75);
 
   const handleResetView = () => {
     setZoom(0.9);
@@ -44,7 +44,6 @@ function App() {
   return (
     <div className="relative-container">
       <TopBar />
-      {/* Canvas background container */}
       <div className="canvas-container">
         <FractalCanvas
           equation={equation}
@@ -59,7 +58,6 @@ function App() {
           fxaaIntensity={fxaaIntensity}
         />
       </div>
-      {/* Controls container */}
       <Controls
         equation={equation}
         onEquationChange={setEquation}
