@@ -26,7 +26,7 @@ function FractalCanvas({
             outColor = vec4(r, g, b, 1.0);
         `,
         'Snowflake': `
-            float logScale = log(1.0 + smoothColor) / log(1.0 + ${iterations}.0);
+            float logScale = log(1.0 + smoothColor) / log(800.0);
             float r = 1.0 - logScale;
             float g = 1.0 - logScale * 0.5;
             float b = 1.0;
@@ -71,12 +71,20 @@ function FractalCanvas({
             float smokeMovement = 0.1 * sin(u_time * 0.5 + smoothColor * 0.1); // Slower movement for smoke
             vec3 smokeColor = vec3(0.1, 0.1, 0.1) + smokeMovement;
 
-            // Apply fire flicker only to brighter parts
-            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
-            vec3 finalColor = mix(smokeColor, emberColor, step(${Math.cbrt(zoom)/50}, brightness)); // Fire extends 95% more
+            // Normalize brightness
+            float brightness = smoothColor / 800.0;
+
+            // Calculate mixFactor for smooth blending between ember and smoke colors
+            float mixFactor = smoothstep(0.005, 0.015, brightness); // Gradual transition range for smooth blending
+
+            // Adjust ember intensity based on zoom factor
+            float zoomFactor = ${Math.cbrt(zoom) / 50.0}; // Incorporate zoom factor as per original logic
+
+            // Combine smoke and ember colors dynamically, scaling effect by zoom
+            vec3 finalColor = mix(smokeColor, emberColor, mixFactor * step(zoomFactor, brightness)); // Apply zoom effect
 
             outColor = vec4(finalColor, 1.0);
-        `, 
+        `,
         'Ocean Waves': `
             // Dynamic movement for surf
             float wave = 0.6 + 0.4 * sin(u_time * 2.0 + smoothColor * 1.5);
@@ -89,7 +97,7 @@ function FractalCanvas({
             vec3 deepWaterColor = vec3(0.0, 0.1, 0.2) + vec3(deepWaterMovement, deepWaterMovement * 0.5, deepWaterMovement * 0.3);
 
             // Smooth blending between surf and deep water
-            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float brightness = smoothColor / 800.0; // Normalize brightness
             float mixFactor = smoothstep(0.005, 0.015, brightness); // Gradual transition
             vec3 waveColor = mix(deepWaterColor, vec3(r, g, b), mixFactor); // Blend dynamically based on brightness
 
@@ -109,7 +117,7 @@ function FractalCanvas({
             vec3 skyColor = vec3(0.0, 0.0, 0.1) + skyMovement;
 
             // Smooth blending between aurora and sky
-            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float brightness = smoothColor / 800.0; // Normalize brightness
             float mixFactor = smoothstep(0.001, 0.003, brightness); // Gradual transition
             vec3 auroraColor = mix(skyColor, vec3(r, g, b) * auroraEffect, mixFactor); // Aurora effect with smoother transition
 
@@ -128,7 +136,7 @@ function FractalCanvas({
             vec3 backgroundColor = vec3(0.0, 0.0, 0.0) + backgroundStability;
 
             // Smooth blending between matrix rain and background
-            float normalizedBrightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float normalizedBrightness = smoothColor / 800.0; // Normalize brightness
             float mixFactor = smoothstep(0.001, 0.003, normalizedBrightness); // Gradual transition
             vec3 finalColor = mix(backgroundColor, matrixColor, mixFactor); // Apply smoother transition
 
