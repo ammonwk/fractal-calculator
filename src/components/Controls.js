@@ -5,7 +5,7 @@ import VariableControl from './VariableControl';
 
 addMathquillStyles();
 
-function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, onCutoffChange, onColorSchemeChange, onResetView, variables, onVariableChange, onVariableDelete, onNewVariable }) {
+function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, onCutoffChange, onColorSchemeChange, onResetView, variables, onVariableChange, onVariableDelete, onNewVariable, fxaaIntensity, setFxaaIntensity }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -124,6 +124,12 @@ function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, on
         setError(null);
     };
 
+    // Handle sharpness change
+    const handleSharpnessChange = (event) => {
+        const newFxaaIntensity = parseFloat(event.target.value);
+        setFxaaIntensity(newFxaaIntensity);
+    };
+
     return (
         <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>
             <div
@@ -224,6 +230,23 @@ function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, on
                             <option>Night Sky</option>
                             <option>Neon Sign</option>
                         </select>
+                    </div>
+
+                    {/* Sharpness Control */}
+                    <div className="mt-4">
+                        <label htmlFor="sharpness" className="text-sm font-semibold">
+                            Sharpness:
+                        </label>
+                        <input
+                            id="sharpness"
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value={fxaaIntensity}
+                            onChange={handleSharpnessChange}
+                            className="w-full mt-1"
+                        />
                     </div>
 
                     <button

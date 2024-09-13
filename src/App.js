@@ -12,6 +12,7 @@ function App() {
   const [offset, setOffset] = useState({ x: 0.7, y: -0.12 });
   const [colorScheme, setColorScheme] = useState('Rainbow');
   const [variables, setVariables] = useState({});
+  const [fxaaIntensity, setFxaaIntensity] = useState(1.75); // New state for sharpness
 
   const handleResetView = () => {
     setZoom(0.9);
@@ -55,6 +56,7 @@ function App() {
           setOffset={setOffset}
           colorScheme={colorScheme}
           variables={variables}
+          fxaaIntensity={fxaaIntensity}
         />
       </div>
       {/* Controls container */}
@@ -71,6 +73,8 @@ function App() {
         onVariableChange={handleVariableChange}
         onVariableDelete={handleVariableDelete}
         onNewVariable={handleNewVariable}
+        fxaaIntensity={fxaaIntensity}
+        setFxaaIntensity={setFxaaIntensity}
       />
     </div>
   );

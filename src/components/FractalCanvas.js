@@ -1,6 +1,17 @@
 import React, { useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 
-function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, setOffset, colorScheme }) {
+function FractalCanvas({
+    equation,
+    iterations,
+    cutoff,
+    zoom,
+    offset,
+    setZoom,
+    setOffset,
+    colorScheme,
+    fxaaIntensity
+}) {
     const canvasRef = useRef();
     const isDraggingRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
@@ -9,59 +20,63 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
     // Define the color options as an object
     const colorOptions = {
         'Rainbow': `
-        float r = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 0.0);
-        float g = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 2.0);
-        float b = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 4.0);
-        outColor = vec4(r, g, b, 1.0);
-    `,
+            float r = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 0.0);
+            float g = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 2.0);
+            float b = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 4.0);
+            outColor = vec4(r, g, b, 1.0);
+        `,
         'Snowflake': `
-        float logScale = log(1.0 + smoothColor) / log(1.0 + ${iterations}.0);
-        float r = 1.0 - logScale;
-        float g = 1.0 - logScale * 0.5;
-        float b = 1.0;
-        outColor = vec4(r, g, b, 1.0);
-    `,
+            float logScale = log(1.0 + smoothColor) / log(1.0 + ${iterations}.0);
+            float r = 1.0 - logScale;
+            float g = 1.0 - logScale * 0.5;
+            float b = 1.0;
+            outColor = vec4(r, g, b, 1.0);
+        `,
         'Watercolors': `
-        float r = 0.7 + 0.2 * sin(smoothColor * 0.2);
-        float g = 0.5 + 0.3 * cos(smoothColor * 0.1);
-        float b = 0.8 + 0.1 * sin(smoothColor * 0.3);
-        outColor = vec4(r, g, b, 0.8);
-    `,
+            float r = 0.7 + 0.2 * sin(smoothColor * 0.2);
+            float g = 0.5 + 0.3 * cos(smoothColor * 0.1);
+            float b = 0.8 + 0.1 * sin(smoothColor * 0.3);
+            outColor = vec4(r, g, b, 0.8);
+        `,
         'Night Sky': `
-        float brightness = smoothColor / ${iterations}.0;
-        float twinkle = 0.8 + 0.5 * sin(smoothColor * 0.5 + u_time); // More pronounced twinkling
-        vec3 coreColor = vec3(0.8, 0.7, 1.0); // White and blue core for galaxy center
-        vec3 edgeColor = mix(vec3(0.0, 0.0, 0.1), vec3(0.0, 0.1, 0.2), brightness); // Darker edges
-        vec3 color = mix(edgeColor, coreColor, brightness) * twinkle;
-        outColor = vec4(color, 1.0);
-    `,
+            float brightness = smoothColor / ${iterations}.0;
+            float twinkle = 0.8 + 0.5 * sin(u_time + smoothColor * 0.5); // More pronounced twinkling
+            vec3 coreColor = vec3(0.8, 0.7, 1.0); // White and blue core for galaxy center
+            vec3 edgeColor = mix(vec3(0.0, 0.0, 0.1), vec3(0.0, 0.1, 0.2), brightness); // Darker edges
+            vec3 color = mix(edgeColor, coreColor, brightness) * twinkle;
+            outColor = vec4(color, 1.0);
+        `,
         'Neon Sign': `
-        float pulse = abs(sin(u_time + smoothColor * 0.1));
-        float r = 0.5 + 0.5 * cos(smoothColor * 0.1 + 0.0);
-        float g = 0.5 + 0.5 * cos(smoothColor * 0.1 + 2.0);
-        float b = 0.5 + 0.5 * cos(smoothColor * 0.1 + 4.0);
-        vec3 color = vec3(r, g, b) * pulse;
-        outColor = vec4(color, 1.0);
-    `
+            float pulse = abs(sin(u_time + smoothColor * 0.1));
+            float r = 0.5 + 0.5 * cos(smoothColor * 0.1 + 0.0);
+            float g = 0.5 + 0.5 * cos(smoothColor * 0.1 + 2.0);
+            float b = 0.5 + 0.5 * cos(smoothColor * 0.1 + 4.0);
+            vec3 color = vec3(r, g, b) * pulse;
+            outColor = vec4(color, 1.0);
+        `
     };
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        const gl = canvas.getContext('webgl2', { antialias: true });
+        const gl = canvas.getContext('webgl2', { antialias: false }); // Disable default AA
         if (!gl) {
             console.error('WebGL2 is not supported in your browser.');
             return;
         }
 
-        // Vertex Shader
-        const vertexShaderSource = `#version 300 es
+        // ===========================
+        // 1. Shader Source Definitions
+        // ===========================
+
+        // Vertex Shader for Fractal Rendering
+        const fractalVertexShaderSource = `#version 300 es
         in vec4 position;
         void main() {
             gl_Position = position;
         }`;
 
-        // Fragment Shader
-        const fragmentShaderSource = `#version 300 es
+        // Fragment Shader for Fractal Rendering
+        const fractalFragmentShaderSource = `#version 300 es
         precision highp float;
 
         uniform vec2 u_resolution;
@@ -106,7 +121,79 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             outColor = vec4(0.0, 0.0, 0.0, 1.0);
         }`;
 
-        // Compile Shader
+        // Vertex Shader for FXAA Pass
+        const fxaaVertexShaderSource = `#version 300 es
+        in vec4 position;
+        out vec2 v_uv;
+
+        void main() {
+            v_uv = (position.xy + 1.0) * 0.5;
+            gl_Position = position;
+        }`;
+
+        // Fragment Shader for FXAA Pass with fxaaIntensity
+        const fxaaFragmentShaderSource = `#version 300 es
+        precision highp float;
+
+        in vec2 v_uv;
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        uniform float u_fxaaIntensity; // New uniform for intensity
+        out vec4 outColor;
+
+        void main() {
+            // FXAA parameters
+            float FXAA_SPAN_MAX = 8.0;
+            float FXAA_REDUCE_MUL = 1.0 / 8.0;
+            float FXAA_REDUCE_MIN = 1.0 / 128.0;
+
+            // Pixel size
+            vec2 inverse_resolution = 1.0 / u_resolution;
+
+            // Sample the surrounding pixels
+            vec3 rgbNW = texture(u_texture, v_uv + vec2(-inverse_resolution.x, -inverse_resolution.y)).rgb;
+            vec3 rgbNE = texture(u_texture, v_uv + vec2(inverse_resolution.x, -inverse_resolution.y)).rgb;
+            vec3 rgbSW = texture(u_texture, v_uv + vec2(-inverse_resolution.x, inverse_resolution.y)).rgb;
+            vec3 rgbSE = texture(u_texture, v_uv + vec2(inverse_resolution.x, inverse_resolution.y)).rgb;
+            vec3 rgbM  = texture(u_texture, v_uv).rgb;
+
+            // Calculate luminance
+            float lumaNW = dot(rgbNW, vec3(0.299, 0.587, 0.114));
+            float lumaNE = dot(rgbNE, vec3(0.299, 0.587, 0.114));
+            float lumaSW = dot(rgbSW, vec3(0.299, 0.587, 0.114));
+            float lumaSE = dot(rgbSE, vec3(0.299, 0.587, 0.114));
+            float lumaM  = dot(rgbM,  vec3(0.299, 0.587, 0.114));
+
+            // Determine the min and max luminance
+            float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+            float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+
+            // Calculate edge detection
+            float edge = (lumaMax - lumaMin);
+
+            // If the edge is too small, don't apply FXAA
+            if(edge < FXAA_REDUCE_MIN) {
+                outColor = vec4(rgbM, 1.0);
+                return;
+            }
+
+            // Compute blend weight
+            float weight = clamp((edge - FXAA_REDUCE_MIN) / (FXAA_SPAN_MAX * FXAA_REDUCE_MUL), 0.0, 1.0);
+
+            // Adjust weight based on fxaaIntensity
+            float adjustedWeight = clamp(weight * u_fxaaIntensity, 0.0, 1.0);
+
+            // Blend the colors
+            vec3 finalColor = mix(rgbM, (rgbNW + rgbNE + rgbSW + rgbSE) / 4.0, adjustedWeight);
+
+            outColor = vec4(finalColor, 1.0);
+        }`;
+
+        // ===========================
+        // 2. Shader Compilation and Program Linking
+        // ===========================
+
+        // Utility function to compile a shader
         function compileShader(gl, type, source) {
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
@@ -120,32 +207,46 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             return shader;
         }
 
-        // Create and Link Program
-        const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+        // Utility function to create a program
+        function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
+            const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 
-        // Check if shaders were created successfully
-        if (!vertexShader || !fragmentShader) {
-            console.error('Failed to create shaders');
-            return;
+            if (!vertexShader || !fragmentShader) {
+                console.error('Failed to compile shaders.');
+                return null;
+            }
+
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program failed to link:', gl.getProgramInfoLog(program));
+                gl.deleteProgram(program);
+                return null;
+            }
+
+            return program;
         }
 
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
+        // Create fractal shader program
+        const fractalProgram = createProgram(gl, fractalVertexShaderSource, fractalFragmentShaderSource);
+        if (!fractalProgram) return;
 
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('Program failed to link:', gl.getProgramInfoLog(program));
-            return;
-        }
+        // Create FXAA shader program
+        const fxaaProgram = createProgram(gl, fxaaVertexShaderSource, fxaaFragmentShaderSource);
+        if (!fxaaProgram) return;
 
-        gl.useProgram(program);
+        // ===========================
+        // 3. Setup Geometry
+        // ===========================
 
-        // Setup Quad
-        const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        const vertices = new Float32Array([
+        // Create a buffer for a full-screen quad
+        const quadBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+        const quadVertices = new Float32Array([
             -1, -1,
             1, -1,
             -1, 1,
@@ -153,39 +254,115 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
             1, -1,
             1, 1
         ]);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
 
-        const positionLocation = gl.getAttribLocation(program, 'position');
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        // Create another buffer for FXAA pass (optional, can reuse quadBuffer)
+        const fxaaQuadBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, fxaaQuadBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
 
-        // Uniforms
-        const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
-        const offsetLocation = gl.getUniformLocation(program, 'u_offset');
-        const zoomLocation = gl.getUniformLocation(program, 'u_zoom');
+        // ===========================
+        // 4. Setup Framebuffer for Offscreen Rendering
+        // ===========================
 
-        // Handle Resize
-        function onResize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+        // Create framebuffer
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+        // Create texture to render fractal into
+        const fractalTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            canvas.width,
+            canvas.height,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Attach texture to framebuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            fractalTexture,
+            0
+        );
+
+        // Check framebuffer status
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+            console.error('Framebuffer is not complete');
+            return;
         }
 
-        window.addEventListener('resize', onResize);
-        onResize();
+        // Unbind framebuffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        // Animation Loop
-        function animate() {
-            gl.useProgram(program); // Ensure the program is in use
-            gl.uniform2f(offsetLocation, offset.x, offset.y);
-            gl.uniform1f(zoomLocation, zoom);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            animationFrameIdRef.current = requestAnimationFrame(animate); // Store the animation frame ID
+        // ===========================
+        // 5. Get Attribute and Uniform Locations
+        // ===========================
+
+        // Fractal Program Locations
+        const fractalPositionLocation = gl.getAttribLocation(fractalProgram, 'position');
+        const fractalResolutionLocation = gl.getUniformLocation(fractalProgram, 'u_resolution');
+        const fractalOffsetLocation = gl.getUniformLocation(fractalProgram, 'u_offset');
+        const fractalZoomLocation = gl.getUniformLocation(fractalProgram, 'u_zoom');
+        const fractalTimeLocation = gl.getUniformLocation(fractalProgram, 'u_time');
+
+        // FXAA Program Locations
+        const fxaaPositionLocation = gl.getAttribLocation(fxaaProgram, 'position');
+        const fxaaTextureLocation = gl.getUniformLocation(fxaaProgram, 'u_texture');
+        const fxaaResolutionLocation = gl.getUniformLocation(fxaaProgram, 'u_resolution');
+        const fxaaIntensityLocation = gl.getUniformLocation(fxaaProgram, 'u_fxaaIntensity'); // New uniform
+
+        // ===========================
+        // 6. Handle Resizing
+        // ===========================
+
+        function resizeCanvas() {
+            const displayWidth = window.innerWidth;
+            const displayHeight = window.innerHeight;
+
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+
+                // Resize fractal texture
+                gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA,
+                    canvas.width,
+                    canvas.height,
+                    0,
+                    gl.RGBA,
+                    gl.UNSIGNED_BYTE,
+                    null
+                );
+
+                // Update viewport for framebuffer
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
         }
 
-        animate();
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // Initial resize
+
+        // ===========================
+        // 7. Event Handlers for Interaction
+        // ===========================
 
         const onMouseDown = (event) => {
             isDraggingRef.current = true;
@@ -209,7 +386,10 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
         };
 
         const onWheel = (event) => {
-            const newZoom = zoom * (event.deltaY < 0 ? 1.1 : 0.9);
+            event.preventDefault(); // Prevent page scroll
+            const zoomFactor = 1.1;
+            const newZoom = zoom * (event.deltaY < 0 ? zoomFactor : 1 / zoomFactor);
+
             const rect = canvas.getBoundingClientRect();
             const mouseX = (event.clientX - rect.left) / rect.width;
             const mouseY = (event.clientY - rect.top) / rect.height;
@@ -225,28 +405,130 @@ function FractalCanvas({ equation, iterations, cutoff, zoom, offset, setZoom, se
         canvas.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
-        canvas.addEventListener('wheel', onWheel);
+        canvas.addEventListener('wheel', onWheel, { passive: false });
 
+        // ===========================
+        // 8. Animation Loop
+        // ===========================
+
+        let startTime = performance.now();
+
+        function animate(currentTime) {
+            // Calculate elapsed time in seconds
+            const elapsedTime = (currentTime - startTime) / 1000.0;
+
+            // ---------------------------
+            // First Pass: Render Fractal to Framebuffer
+            // ---------------------------
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.useProgram(fractalProgram);
+
+            // Bind quad buffer
+            gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+            gl.enableVertexAttribArray(fractalPositionLocation);
+            gl.vertexAttribPointer(fractalPositionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Set uniforms
+            gl.uniform2f(fractalResolutionLocation, canvas.width, canvas.height);
+            gl.uniform2f(fractalOffsetLocation, offset.x, offset.y);
+            gl.uniform1f(fractalZoomLocation, zoom);
+            gl.uniform1f(fractalTimeLocation, elapsedTime);
+
+            // Draw the fractal
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            // ---------------------------
+            // Second Pass: Apply FXAA and Render to Screen
+            // ---------------------------
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.useProgram(fxaaProgram);
+
+            // Bind FXAA quad buffer
+            gl.bindBuffer(gl.ARRAY_BUFFER, fxaaQuadBuffer);
+            gl.enableVertexAttribArray(fxaaPositionLocation);
+            gl.vertexAttribPointer(fxaaPositionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Bind the fractal texture
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+            gl.uniform1i(fxaaTextureLocation, 0);
+            gl.uniform2f(fxaaResolutionLocation, canvas.width, canvas.height);
+            gl.uniform1f(fxaaIntensityLocation, 2 - fxaaIntensity); // Pass fxaaIntensity
+            // Slider value is inverted for better control
+
+            // Draw the quad with FXAA
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            // Request next frame
+            animationFrameIdRef.current = requestAnimationFrame(animate);
+        }
+
+        // Start the animation loop
+        animationFrameIdRef.current = requestAnimationFrame(animate);
+
+        // ===========================
+        // 9. Cleanup on Unmount
+        // ===========================
+
+        // Cleanup function
         return () => {
-            window.removeEventListener('resize', onResize);
+            window.removeEventListener('resize', resizeCanvas);
             canvas.removeEventListener('mousedown', onMouseDown);
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
             canvas.removeEventListener('wheel', onWheel);
 
-            // Cancel the animation loop
             if (animationFrameIdRef.current) {
                 cancelAnimationFrame(animationFrameIdRef.current);
             }
 
             // Delete WebGL resources
-            gl.deleteProgram(program);
-            gl.deleteShader(vertexShader);
-            gl.deleteShader(fragmentShader);
-        };
-    }, [offset, zoom, equation, iterations, cutoff, colorScheme]);
+            gl.deleteProgram(fractalProgram);
+            gl.deleteProgram(fxaaProgram);
+            gl.deleteShader(fractalProgram.vertexShader);
+            gl.deleteShader(fractalProgram.fragmentShader);
+            gl.deleteShader(fxaaProgram.vertexShader);
+            gl.deleteShader(fxaaProgram.fragmentShader);
 
-    return <canvas ref={canvasRef} className="w-full h-full" />;
+            gl.deleteBuffer(quadBuffer);
+            gl.deleteBuffer(fxaaQuadBuffer);
+
+            gl.deleteFramebuffer(framebuffer);
+            gl.deleteTexture(fractalTexture);
+        };
+    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, setZoom, setOffset]); // Ensure dependencies are correct
+
+    // Define PropTypes for better type checking and documentation
+    FractalCanvas.propTypes = {
+        equation: PropTypes.string.isRequired,
+        iterations: PropTypes.number.isRequired,
+        cutoff: PropTypes.number.isRequired,
+        zoom: PropTypes.number.isRequired,
+        offset: PropTypes.shape({
+            x: PropTypes.number.isRequired,
+            y: PropTypes.number.isRequired
+        }).isRequired,
+        setZoom: PropTypes.func.isRequired,
+        setOffset: PropTypes.func.isRequired,
+        colorScheme: PropTypes.oneOf([
+            'Rainbow',
+            'Snowflake',
+            'Watercolors',
+            'Night Sky',
+            'Neon Sign'
+        ]).isRequired,
+        fxaaIntensity: PropTypes.number // New prop
+    };
+
+    // Define default props
+    FractalCanvas.defaultProps = {
+        fxaaIntensity: 1.0 // Default intensity is 1 (standard FXAA)
+    };
+
+    return <canvas ref={canvasRef}></canvas>; // You should render the canvas
+
 }
 
 export default FractalCanvas;
