@@ -5,10 +5,8 @@ import VariableControl from './VariableControl';
 
 addMathquillStyles();
 
-function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColorSchemeChange, onResetView, variables, onVariableChange, onVariableDelete, onNewVariable }) {
+function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, onCutoffChange, onColorSchemeChange, onResetView, variables, onVariableChange, onVariableDelete, onNewVariable }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
-    const [iterations, setIterations] = useState(1000);
-    const [cutoff, setCutoff] = useState(4.0);
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [colorScheme, setColorScheme] = useState('Smooth Gradient');
@@ -17,16 +15,16 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
     useEffect(() => {
         const style = document.createElement("style");
         style.innerHTML = `
-      .mq-editable-field,
-      .mq-editable-field * {
-        color: white !important;
-        caret-color: white !important;
-      }
+            .mq-editable-field,
+            .mq-editable-field * {
+                color: white !important;
+                caret-color: white !important;
+            }
 
-      .mq-cursor {
-        border-color: white !important;
-      }
-    `;
+            .mq-cursor {
+                border-color: white !important;
+            }
+        `;
         document.head.appendChild(style);
 
         return () => {
@@ -42,25 +40,18 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
 
         timeoutRef.current = setTimeout(() => {
             try {
-                // console.log("inputEquation: ", inputEquation);
                 const jsEquation = convertLatexToJS(inputEquation);
-                // console.log("jsEquation: ", jsEquation);
                 const tokens = tokenize(jsEquation, Object.keys(variables));
-                // console.log("tokens: ", tokens);
 
-                // Swap out any member of variables with the variable's value
                 const replacedTokens = tokens.map(token => {
                     if (variables.hasOwnProperty(token)) {
-                        return variables[token].value; // Replace token with its value
+                        return variables[token].value;
                     }
-                    return token; // Leave token unchanged if it's not in variables
+                    return token;
                 });
 
-                console.log("replacedTokens: ", replacedTokens);
                 const syntaxTree = parse(replacedTokens);
-                // console.log("syntaxTree: ", syntaxTree);
                 const glslCode = translateToGLSL(syntaxTree);
-                console.log("glslCode: ", glslCode);
 
                 onEquationChange(glslCode);
                 setError(null);
@@ -114,13 +105,11 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
 
     const handleIterationsChange = (event) => {
         const newIterations = parseInt(event.target.value, 10);
-        setIterations(newIterations);
         onIterationsChange(newIterations);
     };
 
     const handleCutoffChange = (event) => {
         const newCutoff = parseFloat(event.target.value);
-        setCutoff(newCutoff);
         onCutoffChange(newCutoff);
     };
 
@@ -136,16 +125,21 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
     };
 
     return (
-        <div className={`relative flex-none transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-800 text-white shadow-md h-full flex flex-col overflow-hidden`}>
-            <button
-                className="p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition"
-                onClick={() => setIsCollapsed(!isCollapsed)}
+        <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>
+            <div
+                className={`absolute w-64 flex-none transition-all duration-300 ease-in-out ${isCollapsed ? '-translate-x-48' : 'translate-x-0'} bg-gray-800 text-white shadow-md h-full flex flex-col overflow-hidden`}
             >
-                {isCollapsed ? '>' : '< < <'}
-            </button>
-            {!isCollapsed && (
-                <div className="p-4 space-y-4 overflow-y-auto">
-                    <label htmlFor="equation" className="block text-sm font-semibold pt-6">
+                <button
+                    className={`p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition pt-16 ${isCollapsed ? 'text-right pr-7' : 'text-center'
+                        }`}
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                >
+                    {isCollapsed ? '>' : '< < <'}
+                </button>
+                <div
+                    className={`p-4 space-y-4 overflow-y-auto transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}
+                >
+                    <label htmlFor="equation" className="block text-sm font-semibold">
                         Fractal Equation:
                     </label>
                     <MathQuill
@@ -238,9 +232,8 @@ function Controls({ onEquationChange, onIterationsChange, onCutoffChange, onColo
                     >
                         Return to Default View
                     </button>
-
                 </div>
-            )}
+            </div>
         </div>
     );
 }

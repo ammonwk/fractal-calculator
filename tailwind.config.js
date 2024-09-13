@@ -13,7 +13,7 @@ module.exports = {
       },
       fontFamily: {
         // Customize your fonts here
-        sans: ['Inter', 'sans-serif'], // Using Inter as the default sans-serif font
+        sans: ['Poppins', 'Lato'], // Using Inter as the default sans-serif font
       },
       boxShadow: {
         // Add custom shadows

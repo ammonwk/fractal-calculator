@@ -41,37 +41,37 @@ function App() {
   };
 
   return (
-    <div className="relative flex flex-col h-screen w-screen bg-gray-900 text-white overflow-hidden">
+    <div className="relative-container">
       <TopBar />
-      <div className="flex h-full">
-        <div className="flex-none">
-          <Controls
-            equation={equation}
-            onEquationChange={setEquation}
-            onIterationsChange={setIterations}
-            onCutoffChange={setCutoff}
-            onColorSchemeChange={setColorScheme}
-            onResetView={handleResetView}
-            variables={variables}
-            onVariableChange={handleVariableChange}
-            onVariableDelete={handleVariableDelete}
-            onNewVariable={handleNewVariable}
-          />
-        </div>
-        <div className="flex-1 relative">
-          <FractalCanvas
-            equation={equation}
-            iterations={iterations}
-            cutoff={cutoff}
-            zoom={zoom}
-            offset={offset}
-            setZoom={setZoom}
-            setOffset={setOffset}
-            colorScheme={colorScheme}
-            variables={variables}
-          />
-        </div>
+      {/* Canvas background container */}
+      <div className="canvas-container">
+        <FractalCanvas
+          equation={equation}
+          iterations={iterations}
+          cutoff={cutoff}
+          zoom={zoom}
+          offset={offset}
+          setZoom={setZoom}
+          setOffset={setOffset}
+          colorScheme={colorScheme}
+          variables={variables}
+        />
       </div>
+      {/* Controls container */}
+      <Controls
+        equation={equation}
+        onEquationChange={setEquation}
+        iterations={iterations}
+        onIterationsChange={setIterations}
+        cutoff={cutoff}
+        onCutoffChange={setCutoff}
+        onColorSchemeChange={setColorScheme}
+        onResetView={handleResetView}
+        variables={variables}
+        onVariableChange={handleVariableChange}
+        onVariableDelete={handleVariableDelete}
+        onNewVariable={handleNewVariable}
+      />
     </div>
   );
 }
