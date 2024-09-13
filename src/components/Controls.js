@@ -227,8 +227,12 @@ function Controls({ onEquationChange, iterations, onIterationsChange, cutoff, on
                             <option>Rainbow</option>
                             <option>Snowflake</option>
                             <option>Watercolors</option>
-                            <option>Night Sky</option>
-                            <option>Neon Sign</option>
+                            <option>Twinkling Stars</option>
+                            <option>Psychedelics</option>
+                            <option>Fire and Embers</option>
+                            <option>Ocean Waves</option>
+                            <option>Aurora Borealis</option>
+                            <option>The Matrix</option>
                         </select>
                     </div>
 

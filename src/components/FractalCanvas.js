@@ -38,21 +38,101 @@ function FractalCanvas({
             float b = 0.8 + 0.1 * sin(smoothColor * 0.3);
             outColor = vec4(r, g, b, 0.8);
         `,
-        'Night Sky': `
-            float brightness = smoothColor / ${iterations}.0;
-            float twinkle = 0.8 + 0.5 * sin(u_time + smoothColor * 0.5); // More pronounced twinkling
+        'Twinkling Stars': `
+            float brightness = smoothColor / 800.0;
+            // Make twinkle more subtle and only affect brighter parts
+            float twinkle = 1.0 + 0.5 * sin(u_time * 5.0 + smoothColor * 2.5); // Reduced frequency and amplitude
             vec3 coreColor = vec3(0.8, 0.7, 1.0); // White and blue core for galaxy center
             vec3 edgeColor = mix(vec3(0.0, 0.0, 0.1), vec3(0.0, 0.1, 0.2), brightness); // Darker edges
-            vec3 color = mix(edgeColor, coreColor, brightness) * twinkle;
+            vec3 color = mix(edgeColor, coreColor, brightness*2.0); // Base color mixing without twinkle
+            color = mix(color, color * twinkle, step(0.25, brightness)); // Apply twinkle only to brighter parts
             outColor = vec4(color, 1.0);
         `,
-        'Neon Sign': `
+        'Psychedelics': `
             float pulse = abs(sin(u_time + smoothColor * 0.1));
             float r = 0.5 + 0.5 * cos(smoothColor * 0.1 + 0.0);
             float g = 0.5 + 0.5 * cos(smoothColor * 0.1 + 2.0);
             float b = 0.5 + 0.5 * cos(smoothColor * 0.1 + 4.0);
             vec3 color = vec3(r, g, b) * pulse;
             outColor = vec4(color, 1.0);
+        `,
+        'Fire and Embers': `
+            // Dynamic flickering for fire
+            float flicker = 0.7 + 0.3 * sin(u_time * 3.9 + smoothColor * 5.0); // 35% slower
+            float r = 1.0 * flicker;
+            float g = 0.5 * flicker * (0.5 + 0.5 * sin(smoothColor * 3.0 + u_time * 1.3));
+            float b = 0.2 * flicker * (0.5 + 0.5 * cos(smoothColor * 4.0 - u_time * 1.95));
+
+            // Embers with subtle glow
+            float emberGlow = smoothstep(0.7, 1.0, sin(u_time * 6.5 + smoothColor * 7.0)) * flicker;
+            vec3 emberColor = mix(vec3(r, g, b), vec3(1.0, 0.3, 0.1), emberGlow);
+
+            // More stable smoke effect
+            float smokeMovement = 0.1 * sin(u_time * 0.5 + smoothColor * 0.1); // Slower movement for smoke
+            vec3 smokeColor = vec3(0.1, 0.1, 0.1) + smokeMovement;
+
+            // Apply fire flicker only to brighter parts
+            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
+            vec3 finalColor = mix(smokeColor, emberColor, step(${Math.cbrt(zoom)/50}, brightness)); // Fire extends 95% more
+
+            outColor = vec4(finalColor, 1.0);
+        `, 
+        'Ocean Waves': `
+            // Dynamic movement for surf
+            float wave = 0.6 + 0.4 * sin(u_time * 2.0 + smoothColor * 1.5);
+            float r = 0.2 + 0.3 * wave;
+            float g = 0.5 + 0.5 * sin(smoothColor * 0.3 + u_time * 2.0) * wave;
+            float b = 0.8 + 0.2 * cos(smoothColor * 0.5 + u_time * 3.0) * wave;
+
+            // Swaying motion for deeper water
+            float deepWaterMovement = 0.1 * sin(u_time * 0.5 + smoothColor * 0.2); // Slower, back-and-forth motion
+            vec3 deepWaterColor = vec3(0.0, 0.1, 0.2) + vec3(deepWaterMovement, deepWaterMovement * 0.5, deepWaterMovement * 0.3);
+
+            // Smooth blending between surf and deep water
+            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float mixFactor = smoothstep(0.005, 0.015, brightness); // Gradual transition
+            vec3 waveColor = mix(deepWaterColor, vec3(r, g, b), mixFactor); // Blend dynamically based on brightness
+
+            outColor = vec4(waveColor, 1.0);
+        `,
+        'Aurora Borealis': `
+            float shift = 0.5 + 0.5 * sin(u_time * 1.0 + smoothColor * 0.8); // Aurora movement and spacing
+            float r = 0.4 + 0.6 * shift * (0.5 + 0.5 * cos(smoothColor * 1.5 + u_time * 0.5));
+            float g = 0.7 + 0.3 * shift * (0.5 + 0.5 * sin(smoothColor * 1.2 - u_time * 0.6));
+            float b = 0.9 + 0.1 * shift;
+
+            // Create flowing bands for aurora
+            float auroraEffect = smoothstep(0.6, 1.1, abs(sin(u_time * 0.75 + smoothColor * ${1/(4*Math.log10(zoom))}))) * 0.8;
+
+            // More stable dark sky background
+            float skyMovement = 0.01 * sin(u_time * 0.1 + smoothColor * 0.05); // Very subtle, slow movement
+            vec3 skyColor = vec3(0.0, 0.0, 0.1) + skyMovement;
+
+            // Smooth blending between aurora and sky
+            float brightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float mixFactor = smoothstep(0.001, 0.003, brightness); // Gradual transition
+            vec3 auroraColor = mix(skyColor, vec3(r, g, b) * auroraEffect, mixFactor); // Aurora effect with smoother transition
+
+            outColor = vec4(auroraColor, 1.0);
+        `,
+        'The Matrix': `
+            float column = mod(gl_FragCoord.x / u_resolution.x, 1.0); // Keep column stationary
+            float row = mod(gl_FragCoord.y / u_resolution.y + u_time * 0.5, 1.0); // Move rows downward
+            float character = step(0.95, fract(sin(smoothColor * 100.0 + u_time * 30.0) * 43758.5453123)); // Randomized character effect
+            float brightness = step(0.5, abs(sin(u_time * 3.0 + smoothColor * 5.0))) * row * character;
+
+            vec3 matrixColor = mix(vec3(0.0, 0.1, 0.0), vec3(0.0, 1.0, 0.0), brightness); // Bright green falling text
+
+            // Very subtle dark background movement
+            float backgroundStability = 0.02 * sin(u_time * 0.1 + smoothColor * 0.05); // Minimal movement
+            vec3 backgroundColor = vec3(0.0, 0.0, 0.0) + backgroundStability;
+
+            // Smooth blending between matrix rain and background
+            float normalizedBrightness = smoothColor / ${iterations}.0; // Normalize brightness
+            float mixFactor = smoothstep(0.001, 0.003, normalizedBrightness); // Gradual transition
+            vec3 finalColor = mix(backgroundColor, matrixColor, mixFactor); // Apply smoother transition
+
+            outColor = vec4(finalColor, 1.0);
         `
     };
 
@@ -516,8 +596,12 @@ function FractalCanvas({
             'Rainbow',
             'Snowflake',
             'Watercolors',
-            'Night Sky',
-            'Neon Sign'
+            'Twinkling Stars',
+            'Psychedelics',
+            'Fire and Embers',
+            'Ocean Waves',
+            'Aurora Borealis',
+            'The Matrix'
         ]).isRequired,
         fxaaIntensity: PropTypes.number // New prop
     };
