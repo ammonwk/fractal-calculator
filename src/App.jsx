@@ -12,7 +12,9 @@ function App() {
   const [offset, setOffset] = useState({ x: 0.7, y: -0.12 });
   const [colorScheme, setColorScheme] = useState('Rainbow');
   const [variables, setVariables] = useState({});
-  const [fxaaIntensity, setFxaaIntensity] = useState(1.75);
+  const [fxaaIntensity, setFxaaIntensity] = useState(2);
+  const [pixelSize, setPixelSize] = useState(1); // New state for pixel size
+  const [graphicsQuality, setGraphicsQuality] = useState(70); // New state for graphics quality
 
   const handleResetView = () => {
     setZoom(0.9);
@@ -41,6 +43,18 @@ function App() {
     }));
   };
 
+  // Handle changes to the graphics quality
+  const handleGraphicsQualityChange = (quality) => {
+    setGraphicsQuality(quality);
+
+    // Adjust pixel size and iterations based on quality
+    const newPixelSize = quality > 75 ? 1 : quality > 50 ? 1 : quality > 25 ? 2 : 8;
+    const newIterations = quality > 75 ? 1000 : quality > 50 ? 500 : quality > 25 ? 250 : 100;
+
+    setPixelSize(newPixelSize);
+    setIterations(newIterations);
+  };
+
   return (
     <div className="relative-container">
       <TopBar />
@@ -56,6 +70,7 @@ function App() {
           colorScheme={colorScheme}
           variables={variables}
           fxaaIntensity={fxaaIntensity}
+          pixelSize={pixelSize}
         />
       </div>
       <Controls
@@ -73,6 +88,10 @@ function App() {
         onNewVariable={handleNewVariable}
         fxaaIntensity={fxaaIntensity}
         setFxaaIntensity={setFxaaIntensity}
+        pixelSize={pixelSize}
+        setPixelSize={setPixelSize}
+        graphicsQuality={graphicsQuality}
+        setGraphicsQuality={handleGraphicsQualityChange}
       />
     </div>
   );

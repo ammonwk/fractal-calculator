@@ -7,6 +7,7 @@ export function useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset) {
 
     useEffect(() => {
         const canvas = canvasRef.current;
+        const devicePixelRatio = window.devicePixelRatio || 1;
 
         // Apply the CSS rule to disable default touch actions on the canvas only
         canvas.style.touchAction = 'none';
@@ -24,8 +25,8 @@ export function useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset) {
 
         const onMouseMove = (event) => {
             if (isDraggingRef.current) {
-                const deltaX = (event.clientX - lastMousePosRef.current.x) / (zoom * canvas.width);
-                const deltaY = (event.clientY - lastMousePosRef.current.y) / (zoom * canvas.height);
+                const deltaX = (event.clientX - lastMousePosRef.current.x) / (zoom * canvas.width / devicePixelRatio);
+                const deltaY = (event.clientY - lastMousePosRef.current.y) / (zoom * canvas.height / devicePixelRatio);
                 setOffset(prevOffset => ({
                     x: prevOffset.x + deltaX * 2.0 * (canvas.width / canvas.height),
                     y: prevOffset.y - deltaY * 2.0
@@ -72,8 +73,8 @@ export function useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset) {
             if (event.target !== canvas) return; // Only handle touch events on the canvas
             event.preventDefault(); // Prevent default pinch-zoom behavior
             if (isDraggingRef.current && event.touches.length === 1) {
-                const deltaX = (event.touches[0].clientX - lastMousePosRef.current.x) / (zoom * canvas.width);
-                const deltaY = (event.touches[0].clientY - lastMousePosRef.current.y) / (zoom * canvas.height);
+                const deltaX = (event.touches[0].clientX - lastMousePosRef.current.x) / (zoom * canvas.width / devicePixelRatio);
+                const deltaY = (event.touches[0].clientY - lastMousePosRef.current.y) / (zoom * canvas.height / devicePixelRatio);
                 setOffset(prevOffset => ({
                     x: prevOffset.x + deltaX * 2.0 * (canvas.width / canvas.height),
                     y: prevOffset.y - deltaY * 2.0

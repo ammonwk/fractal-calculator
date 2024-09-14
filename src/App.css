@@ -31,25 +31,41 @@ canvas {
 /* Tooltip container */
 .tooltip {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5em; /* Space between label and tooltip icon */
+}
+
+/* Tooltip icon circle */
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #444;
+  border-radius: 50%;
+  width: 1.2em;
+  height: 1.2em;
+  font-size: 0.9em;
+  font-weight: bold;
+  color: #fff;
+  cursor: help;
+  margin-left: 0.2em; /* Fine-tune spacing between icon and label */
 }
 
 /* Tooltip text */
 .tooltip .tooltip-text {
   visibility: hidden;
-  width: 200px;
+  /* width: 200px; */
   background-color: black;
   color: #fff;
   text-align: center;
   border-radius: 6px;
   padding: 5px;
-  margin-left: 1em;
   position: absolute;
   z-index: 1;
-  bottom: 125%;
-  /* Position above the "i" circle */
-  left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  left: 125%; /* Position to the right of the "i" icon */
+  transform: translateY(-50%);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -58,27 +74,6 @@ canvas {
 .tooltip:hover .tooltip-text {
   visibility: visible;
   opacity: 1;
-}
-
-/* Tooltip icon circle */
-.tooltip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #444;
-  border-radius: 50%;
-  width: 1.2em;
-  height: 1.2em;
-  margin-left: 1em;
-  padding-right: 1em;
-  /* Space between label and tooltip */
-}
-
-.tooltip-icon {
-  margin-left: 1em;
-  font-size: 0.9em;
-  font-weight: bold;
-  cursor: help;
 }
 
 tooltip-text {
@@ -148,6 +143,41 @@ input[type="number"] {
   /* White text color on hover */
   transform: scale(1.05);
   /* Slightly enlarge on hover */
+}
+
+.dropdown-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  /* Slide down/up animation */
+  max-height: 0;
+  /* Initially hidden */
+  padding-left: 2em;
+}
+
+.dropdown-content-expanded {
+  max-height: 500px;
+  /* Adjust to accommodate the maximum possible height of the dropdown */
+}
+
+.dropdown-button-small {
+  background-color: #1f2937;
+  color: #d1d5db;
+  padding: 0.15rem 0.2rem;
+  border: 1px solid #374151;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.1s;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.dropdown-button-small:hover {
+  background-color: #374151;
+  color: #ffffff;
+  transform: scale(1.05);
 }
 
 /* WebKit-based browsers (Chrome, Safari) */
