@@ -16,6 +16,7 @@ function App() {
   const [fxaaIntensity, setFxaaIntensity] = useState(2);
   const [pixelSize, setPixelSize] = useState(1);
   const [graphicsQuality, setGraphicsQuality] = useState(70);
+  const [isJuliaSet, setIsJuliaSet] = useState(false);
 
   const handleResetView = () => {
     setZoom(0.9);
@@ -27,6 +28,10 @@ function App() {
       ...prevVariables,
       [variableName]: updatedVariable,
     }));
+  };
+
+  const handleToggleChange = () => {
+    setIsJuliaSet((prevState) => !prevState);
   };
 
   const handleVariableDelete = (variableName) => {
@@ -68,6 +73,7 @@ function App() {
           variables={variables}
           fxaaIntensity={fxaaIntensity}
           pixelSize={pixelSize}
+          inJuliaSetMode={isJuliaSet}
         />
       </div>
       <Controls
@@ -89,6 +95,8 @@ function App() {
         setPixelSize={setPixelSize}
         graphicsQuality={graphicsQuality}
         setGraphicsQuality={handleGraphicsQualityChange}
+        isJuliaSet={isJuliaSet}
+        handleToggleChange={handleToggleChange}
       />
       <InfoButton /> {/* Add the InfoButton component */}
     </div>

@@ -135,13 +135,15 @@ void main() {
 }`;
 
 // Fractal Fragment Shader
-export const fractalFragmentShaderSource = (equation, iterations, cutoff, colorScheme, zoom) => `#version 300 es
+export const fractalFragmentShaderSource = (equation, iterations, cutoff, colorScheme, zoom, inJuliaSetMode) => `#version 300 es
 precision highp float;
 
 uniform vec2 u_resolution;
 uniform vec2 u_offset;
 uniform float u_zoom;
 uniform float u_time;
+uniform vec2 u_juliaParam; // Julia set parameter
+uniform int u_isJuliaSet; // Flag to toggle Julia set
 out vec4 outColor;
 
 vec3 hsv2rgb(vec3 c) {
@@ -160,8 +162,8 @@ void main() {
     uv.x *= u_resolution.x / u_resolution.y;
     uv = uv / u_zoom - u_offset;
 
-    vec2 c = uv;
-    vec2 z = vec2(0.0);
+    vec2 c = u_isJuliaSet == 1 ? u_juliaParam : uv; // Use Julia parameter if in Julia set mode
+    vec2 z = u_isJuliaSet == 1 ? uv : vec2(0.0); // Swap z and c in Julia mode
 
     float iterations = ${iterations}.0;
     float smoothColor = 0.0;

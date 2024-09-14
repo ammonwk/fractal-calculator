@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import MathQuill, { addStyles as addMathquillStyles } from 'react-mathquill';
 import { tokenize, parse, translateToGLSL } from '../EquationParser/EquationParser';
 import VariableControl from './VariableControl';
-import Tooltip from './Tooltip'; // Import the Tooltip component
+import ToggleSwitch from './ToggleSwitch';
+import Tooltip from './Tooltip';
 
 addMathquillStyles();
 
@@ -23,7 +24,9 @@ function Controls({
     pixelSize,
     setPixelSize,
     graphicsQuality,
-    setGraphicsQuality
+    setGraphicsQuality,
+    isJuliaSet,
+    handleToggleChange
 }) {
     const [latexInput, setLatexInput] = useState('z^2 + c');
     const [error, setError] = useState(null);
@@ -164,6 +167,24 @@ function Controls({
                             )}
                         </div>
                     )}
+                    <div className="mt-4">
+                        <label className="text-sm font-semibold flex items-center">
+                            Fractal Type:
+                            <span
+                                className="tooltip"
+                                onMouseEnter={(e) => handleMouseEnter("Switch between Base Fractal and Julia Set.", e)}
+                                onMouseLeave={handleMouseLeave}
+                            >
+                                <span className="tooltip-icon">i</span>
+                            </span>
+                        </label>
+                        <ToggleSwitch
+                            checked={isJuliaSet}
+                            onChange={handleToggleChange}
+                            leftLabel="Base Fractal"
+                            rightLabel="Julia Set"
+                        />
+                    </div>
                     {Object.keys(variables).map((variableName) => (
                         <VariableControl key={variableName} name={variableName} variable={variables[variableName]} onVariableChange={onVariableChange} onVariableDelete={onVariableDelete} />
                     ))}

@@ -1,5 +1,6 @@
 // FractalCanvas.js
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import DraggableBead from './DraggableBead';
 import { fractalVertexShaderSource, fractalFragmentShaderSource, fxaaVertexShaderSource, fxaaFragmentShaderSource } from './shaders';
 import { useDragAndZoom } from './useDragAndZoom';
 import { compileShader, createProgram, resizeCanvasToDisplaySize } from './WebGLUtils';
@@ -14,10 +15,12 @@ function FractalCanvas({
     setOffset,
     colorScheme,
     fxaaIntensity,
-    pixelSize
+    pixelSize,
+    inJuliaSetMode
 }) {
     const canvasRef = useRef();
     const animationFrameIdRef = useRef(null);
+    const [juliaParam, setJuliaParam] = useState({ x: 0.0, y: 0.0 });
 
     useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset);
 
@@ -33,7 +36,7 @@ function FractalCanvas({
         const fractalProgram = createProgram(
             gl,
             fractalVertexShaderSource,
-            fractalFragmentShaderSource(equation, iterations, cutoff, colorScheme, zoom) // Pass pixelSize to the shader
+            fractalFragmentShaderSource(equation, iterations, cutoff, colorScheme, zoom, inJuliaSetMode)
         );
         const fxaaProgram = createProgram(gl, fxaaVertexShaderSource, fxaaFragmentShaderSource);
         if (!fractalProgram || !fxaaProgram) return;
@@ -74,14 +77,16 @@ function FractalCanvas({
         const fractalZoomLocation = gl.getUniformLocation(fractalProgram, 'u_zoom');
         const fractalTimeLocation = gl.getUniformLocation(fractalProgram, 'u_time');
 
+        // New uniforms for Julia Set
+        const juliaParamLocation = gl.getUniformLocation(fractalProgram, 'u_juliaParam');
+        const isJuliaSetLocation = gl.getUniformLocation(fractalProgram, 'u_isJuliaSet');
+
         const fxaaPositionLocation = gl.getAttribLocation(fxaaProgram, 'position');
         const fxaaTextureLocation = gl.getUniformLocation(fxaaProgram, 'u_texture');
         const fxaaResolutionLocation = gl.getUniformLocation(fxaaProgram, 'u_resolution');
         const fxaaIntensityLocation = gl.getUniformLocation(fxaaProgram, 'u_fxaaIntensity');
 
         const resizeCanvas = () => resizeCanvasToDisplaySize(gl, canvas, fractalTexture, framebuffer);
-
-        window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
         let startTime = performance.now();
@@ -91,7 +96,7 @@ function FractalCanvas({
 
             // Render fractal to low-resolution framebuffer
             gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-            gl.viewport(0, 0, reducedWidth, reducedHeight); // Set viewport to low resolution
+            gl.viewport(0, 0, reducedWidth, reducedHeight);
             gl.useProgram(fractalProgram);
             gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
             gl.enableVertexAttribArray(fractalPositionLocation);
@@ -101,11 +106,14 @@ function FractalCanvas({
             gl.uniform2f(fractalOffsetLocation, offset.x, offset.y);
             gl.uniform1f(fractalZoomLocation, zoom);
             gl.uniform1f(fractalTimeLocation, elapsedTime);
+            gl.uniform2f(juliaParamLocation, juliaParam.x, juliaParam.y); // Pass Julia parameter
+            gl.uniform1i(isJuliaSetLocation, inJuliaSetMode ? 1 : 0); // Pass Julia set mode
+
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             // Render the low-resolution framebuffer to the screen
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-            gl.viewport(0, 0, canvas.width, canvas.height); // Set viewport to full canvas size
+            gl.viewport(0, 0, canvas.width, canvas.height);
             gl.useProgram(fxaaProgram);
             gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
             gl.enableVertexAttribArray(fxaaPositionLocation);
@@ -134,9 +142,20 @@ function FractalCanvas({
             gl.deleteFramebuffer(framebuffer);
             gl.deleteTexture(fractalTexture);
         };
-    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, setZoom, setOffset, pixelSize]);  // Include pixelSize in the dependencies
+    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, setZoom, setOffset, pixelSize, inJuliaSetMode, juliaParam]);
 
-    return <canvas ref={canvasRef}></canvas>;
+    return (
+        <div style={{ position: 'relative' }}>
+            <canvas ref={canvasRef} style={{ display: 'block' }}></canvas>
+            {inJuliaSetMode && (
+                <DraggableBead
+                    canvasRef={canvasRef}
+                    juliaParam={juliaParam}
+                    setJuliaParam={setJuliaParam}
+                />
+            )}
+        </div>
+    );
 }
 
 export default FractalCanvas;
