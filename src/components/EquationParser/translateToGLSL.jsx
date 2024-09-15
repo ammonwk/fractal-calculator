@@ -1,160 +1,3 @@
-export function tokenize(input, variables) {
-    const tokens = [];
-    const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log']; // List of known LaTeX functions
-    const allowedVariables = ['z', 'c', ...variables]; // List of allowed variables
-    const tokenRegex = /\s*(\*\*|\\[a-zA-Z]+|[A-Za-z_]\w*|\d+(\.\d+)?|[+\-*/^()=,|{}]|\\left|\\right)\s*/g;
-    let match;
-    let lastTokenType = null; // Track the type of the last token
-
-    while ((match = tokenRegex.exec(input)) !== null) {
-        const token = match[1];
-        let currentTokenType;
-
-        if (knownFunctions.includes(token)) {
-            currentTokenType = 'function';
-        } else if (/^[A-Za-z_]\w*$/.test(token)) {
-            // It's a variable or unknown symbol sequence
-            currentTokenType = 'variable';
-        } else if (/^\d+(\.\d+)?$/.test(token)) {
-            // It's a number
-            currentTokenType = 'number';
-        } else if (/^[+\-*/^()=,|{}]$/.test(token)) {
-            // It's an operator or parenthesis
-            currentTokenType = 'operator';
-        } else {
-            // Handle other cases such as LaTeX commands
-            currentTokenType = 'other';
-        }
-
-        // Determine if an implicit multiplication is needed
-        if (
-            (lastTokenType === 'number' && (currentTokenType === 'variable' || currentTokenType === 'function')) ||
-            (lastTokenType === 'variable' && (currentTokenType === 'number' || currentTokenType === 'function')) ||
-            (lastTokenType === 'function' && (currentTokenType === 'number' || currentTokenType === 'variable')) ||
-            (lastTokenType === 'closeParen' && (currentTokenType === 'number' || currentTokenType === 'function' || currentTokenType === 'variable')) ||
-            (lastTokenType === 'number' && currentTokenType === 'function')
-        ) {
-            tokens.push('*');
-        }
-
-        // Add the current token to the list
-        if (currentTokenType === 'variable') {
-            // Split variables into individual characters
-            for (let i = 0; i < token.length; i++) {
-                const currentChar = token[i];
-
-                // Check if the variable is allowed
-                if (!allowedVariables.includes(currentChar)) {
-                    throw new Error(`Invalid variable '${currentChar}' found. Only 'z' and 'c' are allowed.`);
-                }
-
-                tokens.push(currentChar);
-                lastTokenType = 'variable'; // Update the last token type
-            }
-        } else {
-            tokens.push(token);
-            lastTokenType = currentTokenType; // Update the last token type
-
-            if (token === ')') {
-                lastTokenType = 'closeParen'; // Special handling for close parentheses
-            }
-        }
-    }
-
-    // Check for any unrecognized characters
-    const unrecognizedMatch = input.match(/[^a-zA-Z0-9\s\\+\-*/^()=,|{}._]/);
-    if (unrecognizedMatch) {
-        throw new Error(`Invalid character '${unrecognizedMatch[0]}' found. Please remove or correct it.`);
-    }
-
-    return tokens;
-}
-
-export function parse(tokens) {
-    let index = 0;
-
-    function parseExpression() {
-        if (tokens.length === 0) {
-            throw new Error('Empty expression. Please provide a valid mathematical expression.');
-        }
-
-        let node = parseTerm();
-        while (index < tokens.length && (tokens[index] === '+' || tokens[index] === '-')) {
-            const operator = tokens[index++];
-            const right = parseTerm();
-            node = { type: 'binary', operator, left: node, right };
-        }
-        return node;
-    }
-
-    function parseTerm() {
-        let node = parseFactor();
-        while (index < tokens.length && (tokens[index] === '*' || tokens[index] === '/' || tokens[index] === '\\frac')) {
-            const operator = tokens[index++];
-            const right = parseFactor();
-            node = { type: 'binary', operator, left: node, right };
-        }
-        return node;
-    }
-
-    function parseFactor() {
-        let node = parseExponent();
-        while (index < tokens.length && (tokens[index] === '**')) {
-            const operator = tokens[index++];
-            const right = parseExponent();
-            node = { type: 'binary', operator, left: node, right };
-        }
-        return node;
-    }
-
-    function parseExponent() {
-        if (index >= tokens.length) {
-            throw new Error(`Incomplete expression. An equation cannot end with a "${tokens[index-1]}" operator.`);
-        }
-
-        let token = tokens[index++];
-
-        if (token === '(' || token === '\\left(') {
-            const node = parseExpression();
-            if (tokens[index] !== ')' && tokens[index] !== '\\right)') {
-                throw new Error('Mismatched parentheses. Ensure every "(" has a corresponding ")" in your equation.');
-            }
-            index++;
-            return node;
-        } else if (token === '\\sqrt') {
-            const argument = parseFactor();
-            return { type: 'sqrt', argument };
-        } else if (/(sin|cos|tan|exp|log|sqrt)/.test(token)) {
-            const functionName = token.replace('\\', '');
-            const argument = parseFactor();
-            return { type: 'function', name: functionName, argument };
-        } else if (/[A-Za-z_]\w*/.test(token)) {
-            if (tokens[index] === '(') {
-                index++;
-                const args = [];
-                while (tokens[index] !== ')') {
-                    args.push(parseExpression());
-                    if (tokens[index] === ',') {
-                        index++;
-                    }
-                }
-                if (tokens[index] !== ')') {
-                    throw new Error(`Mismatched parentheses in function call for "${token}". Ensure every "(" has a corresponding ")" in your equation.`);
-                }
-                index++;
-                return { type: 'call', name: token, args };
-            }
-            return { type: 'variable', name: token };
-        } else if (/\d/.test(token)) {
-            return { type: 'number', value: parseFloat(token) };
-        } else {
-            throw new Error(`Error: It appears you have some invalid syntax in your equation.`);
-        }
-    }
-
-    return parseExpression();
-}
-
 export function translateToGLSL(node) {
     const tempDeclarations = []; // To accumulate temporary variable declarations
     const cachedExpressions = new Map(); // To cache repeated subexpressions
@@ -265,6 +108,13 @@ export function translateToGLSL(node) {
                         isComplex: true
                     };
                 }
+                if (node.name === 'i') {
+                    // Handle the imaginary unit 'i' as a complex number (0.0, 1.0)
+                    return {
+                        glsl: 'vec2(0.0, 1.0)',
+                        isComplex: true
+                    };
+                }
                 return {
                     glsl: node.name,
                     isComplex: false
@@ -272,9 +122,11 @@ export function translateToGLSL(node) {
             }
             case 'number': {
                 const isInteger = Number.isInteger(node.value);
+                const realPart = isInteger ? `${node.value}.0` : node.value.toString();
                 return {
-                    glsl: isInteger ? `${node.value}.0` : node.value.toString(),
-                    isComplex: false
+                    // Treat real numbers as (x, 0.0)
+                    glsl: `vec2(${realPart}, 0.0)`,
+                    isComplex: true
                 };
             }
             case 'call': {

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import MathQuill, { addStyles as addMathquillStyles } from 'react-mathquill';
-import { tokenize, parse, translateToGLSL } from '../EquationParser/EquationParser';
+import { tokenize } from '../EquationParser/tokenizing';
+import { parse } from '../EquationParser/parsing';
+import { translateToGLSL } from '../EquationParser/translateToGLSL';
 import VariableControl from './VariableControl';
 import ToggleSwitch from './ToggleSwitch';
 import Tooltip from './Tooltip';
@@ -146,7 +148,7 @@ function Controls({
     return (
         <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>
             <div className={`absolute w-64 flex-none transition-all duration-300 ease-in-out ${isCollapsed ? '-translate-x-48' : 'translate-x-0'} bg-gray-800 text-white shadow-md h-full flex flex-col overflow-hidden`}>
-                <button className={`p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition pt-16 ${isCollapsed ? 'text-right pr-7' : 'text-center'}`} onClick={() => setIsCollapsed(!isCollapsed)}>{isCollapsed ? '>' : '< < <'}</button>
+                <button className={`p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition pt-20 ${isCollapsed ? 'text-right pr-7' : 'text-center'}`} onClick={() => setIsCollapsed(!isCollapsed)}>{isCollapsed ? '>' : '< < <'}</button>
                 <div className={`p-4 space-y-4 overflow-y-auto transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
                     <label htmlFor="equation" className="block text-sm font-semibold">
                         Fractal Equation:
@@ -213,7 +215,7 @@ function Controls({
                     </div>
                     <div className="mt-4 flex items-center">
                         <label htmlFor="graphics-quality" className="text-sm font-semibold">
-                            Graphics Quality: {getGraphicsQualityText()}
+                            Graphics: {getGraphicsQualityText()}
                             <span
                                 className="tooltip"
                                 onMouseEnter={(e) => handleMouseEnter("Adjust the graphics quality. Higher settings provide better visuals but may reduce performance.", e)}
@@ -227,7 +229,7 @@ function Controls({
 
                     {/* Advanced Options Toggle */}
                     <div className="mt-2 flex items-center">
-                        <span className="text-sm font-semibold">Advanced Graphics Options</span>
+                        <span className="text-sm font-semibold">Advanced Options</span>
                         <button onClick={toggleExpand} className="dropdown-button-small">{isExpanded ? '▲' : '▼'}</button>
                     </div>
 
