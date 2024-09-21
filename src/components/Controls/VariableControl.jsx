@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 function VariableControl({ name, variable, onVariableChange, onVariableDelete }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [playMode, setPlayMode] = useState('loop'); // 'loop', 'ping-pong', 'rise'
-    const [speed, setSpeed] = useState(1); // Default speed is 1
+    const [speed, setSpeed] = useState(60); // Default speed is 1
     const intervalRef = useRef(null);
     const [direction, setDirection] = useState(1); // 1 for ascending, -1 for descending
     const [isExpanded, setIsExpanded] = useState(false); // State to handle dropdown visibility
@@ -39,7 +39,6 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
     }, [playMode, direction, name, onVariableChange, variable]);
 
     useEffect(() => {
-        console.log("isPlaying", isPlaying);
         if (!isPlaying) {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
@@ -178,10 +177,10 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                             <select
                                 value={playMode}
                                 onChange={handlePlayModeChange}
-                                className="w-24 p-1 bg-gray-800 rounded text-white text-xs"
+                                className="w-18 p-1 bg-gray-800 rounded text-white text-xs"
                             >
                                 <option value="loop">Loop</option>
-                                <option value="ping-pong">Ping-Pong</option>
+                                <option value="ping-pong">Bounce</option>
                                 <option value="rise">Rise</option>
                             </select>
                             <label className="text-xs">Fps:</label>
@@ -192,7 +191,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                                 step="0.1"
                                 value={speed}
                                 onChange={handleSpeedChange}
-                                className="w-4 p-1 bg-gray-800 rounded text-white text-xs"
+                                className="w-6 p-1 bg-gray-800 rounded text-white text-xs"
                             />
                         </div>
                     </div>

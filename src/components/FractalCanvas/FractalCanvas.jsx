@@ -25,12 +25,20 @@ function FractalCanvas({
     useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset);
 
     useEffect(() => {
+
         const canvas = canvasRef.current;
         const gl = canvas.getContext('webgl2', { antialias: false });
         if (!gl) {
             console.error('WebGL2 is not supported in your browser.');
             return;
         }
+
+        const resizeCanvas = () => {
+            resizeCanvasToDisplaySize(gl, canvas);
+        };
+
+        // Call resizeCanvas immediately to ensure correct size on mount
+        resizeCanvas();
 
         // Construct shader programs dynamically
         const fractalProgram = createProgram(
@@ -39,7 +47,10 @@ function FractalCanvas({
             fractalFragmentShaderSource(equation, iterations, cutoff, colorScheme, zoom, inJuliaSetMode)
         );
         const fxaaProgram = createProgram(gl, fxaaVertexShaderSource, fxaaFragmentShaderSource);
-        if (!fractalProgram || !fxaaProgram) return;
+        if (!fractalProgram || !fxaaProgram) {
+            console.error('Failed to create shader programs');
+            return;
+        }
 
         // Create geometry and setup framebuffer
         const quadBuffer = gl.createBuffer();
@@ -51,7 +62,7 @@ function FractalCanvas({
         const framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-        // Compute the reduced resolution size
+        // Compute the reduced resolution size after ensuring canvas is properly resized
         const reducedWidth = Math.ceil(canvas.width / pixelSize);
         const reducedHeight = Math.ceil(canvas.height / pixelSize);
 
@@ -85,9 +96,6 @@ function FractalCanvas({
         const fxaaTextureLocation = gl.getUniformLocation(fxaaProgram, 'u_texture');
         const fxaaResolutionLocation = gl.getUniformLocation(fxaaProgram, 'u_resolution');
         const fxaaIntensityLocation = gl.getUniformLocation(fxaaProgram, 'u_fxaaIntensity');
-
-        const resizeCanvas = () => resizeCanvasToDisplaySize(gl, canvas, fractalTexture, framebuffer);
-        resizeCanvas();
 
         let startTime = performance.now();
 
@@ -131,6 +139,8 @@ function FractalCanvas({
 
         animationFrameIdRef.current = requestAnimationFrame(animate);
 
+        window.addEventListener('resize', resizeCanvas);
+
         return () => {
             window.removeEventListener('resize', resizeCanvas);
             if (animationFrameIdRef.current) {
@@ -142,7 +152,7 @@ function FractalCanvas({
             gl.deleteFramebuffer(framebuffer);
             gl.deleteTexture(fractalTexture);
         };
-    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, setZoom, setOffset, pixelSize, inJuliaSetMode, juliaParam]);
+    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, pixelSize, inJuliaSetMode, juliaParam]);
 
     return (
         <div style={{ position: 'relative' }}>

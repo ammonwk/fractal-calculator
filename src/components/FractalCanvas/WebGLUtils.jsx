@@ -43,9 +43,11 @@ export function resizeCanvasToDisplaySize(gl, canvas, fractalTexture, framebuffe
         canvas.width = displayWidth;
         canvas.height = displayHeight;
 
-        // Update the texture with the new size
-        gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        if(fractalTexture) {
+            // Update the texture with the new size
+            gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        }
 
         // Bind and set the viewport for the framebuffer
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);

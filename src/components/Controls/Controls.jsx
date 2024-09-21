@@ -10,6 +10,8 @@ import Tooltip from './Tooltip';
 addMathquillStyles();
 
 function Controls({
+    latexInput,
+    setLatexInput,
     onEquationChange,
     iterations,
     onIterationsChange,
@@ -28,14 +30,17 @@ function Controls({
     graphicsQuality,
     setGraphicsQuality,
     isJuliaSet,
-    handleToggleChange
+    handleToggleChange,
+    handleSaveFractal,
+    setShareModalVisible,
+    setShareUrl
 }) {
-    const [latexInput, setLatexInput] = useState('z^2 + c');
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [colorScheme, setColorScheme] = useState('Smooth Gradient');
     const [isExpanded, setIsExpanded] = useState(false);
     const timeoutRef = useRef(null);
+    const isInitialRender = useRef(true);
 
     // State for managing tooltip
     const [tooltip, setTooltip] = useState({ visible: false, content: '', position: { top: 0, left: 0 } });
@@ -63,24 +68,22 @@ function Controls({
         setLatexInput(inputEquation);
         clearTimeout(timeoutRef.current);
 
-        timeoutRef.current = setTimeout(() => {
-            try {
-                const jsEquation = convertLatexToJS(inputEquation);
-                const tokens = tokenize(jsEquation, Object.keys(variables));
-                const replacedTokens = tokens.map(token => (variables.hasOwnProperty(token) ? variables[token].value : token));
-                const syntaxTree = parse(replacedTokens);
-                const glslCode = translateToGLSL(syntaxTree);
-                onEquationChange(glslCode);
-                setError(null);
-            } catch (error) {
-                if (error.message.includes("Invalid variable")) {
-                    const variableName = error.message.match(/'([^']+)'/)[1];
-                    setError({ message: `No variable "${variableName}" has been declared.`, variableName });
-                } else {
-                    setError({ message: error.message });
-                }
+        try {
+            const jsEquation = convertLatexToJS(inputEquation);
+            const tokens = tokenize(jsEquation, Object.keys(variables));
+            const replacedTokens = tokens.map(token => (variables.hasOwnProperty(token) ? variables[token].value : token));
+            const syntaxTree = parse(replacedTokens);
+            const glslCode = translateToGLSL(syntaxTree);
+            onEquationChange(glslCode);
+            setError(null);
+        } catch (error) {
+            if (error.message.includes("Invalid variable")) {
+                const variableName = error.message.match(/'([^']+)'/)[1];
+                setError({ message: `No variable "${variableName}" has been declared.`, variableName });
+            } else {
+                setError({ message: error.message });
             }
-        }, 300);
+        }
     };
 
     function convertLatexToJS(latex) {
@@ -103,7 +106,11 @@ function Controls({
     }
 
     useEffect(() => {
-        handleInputChange({ latex: () => latexInput });
+        if (!isInitialRender.current) { // Check if it's not the first render
+            handleInputChange({ latex: () => latexInput });
+        } else {
+            isInitialRender.current = false; // Set to false after the first render
+        }
         return () => clearTimeout(timeoutRef.current);
     }, [variables]);
 
@@ -143,6 +150,28 @@ function Controls({
 
     const handleMouseLeave = () => {
         setTooltip({ ...tooltip, visible: false });
+    };
+
+    const handleShareClick = async (event) => {
+        const url = await handleSaveFractal(); // Call the modified handleSaveFractal
+        if (url) {
+            setShareUrl(window.location.origin + url); // Construct the full URL
+
+            let clientX, clientY;
+
+            // Check if the event is a touch event
+            if (event.type === 'touchstart' || event.type === 'touchend') {
+                clientX = event.touches[0].clientX; // Get the x-coordinate of the first touch point
+                clientY = event.touches[0].clientY; // Get the y-coordinate of the first touch point
+            } else {
+                // Mouse event handling
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            // Set the modal visibility and position
+            setShareModalVisible({ visible: true, x: clientX + 10, y: clientY - 10 });
+        }
     };
 
     return (
@@ -294,6 +323,8 @@ function Controls({
                             <input id="cutoff" type="number" min="0" step="0.1" value={cutoff} onChange={handleCutoffChange} className="w-full mt-1 p-2 bg-gray-700 rounded text-white" />
                         </div>
                     </div>
+
+                    <button onClick={handleShareClick} className="mt-4 p-2 bg-blue-500 rounded text-white hover:bg-blue-400">Share Fractal</button>
 
                     <button onClick={onResetView} className="mt-4 p-2 bg-blue-500 rounded text-white hover:bg-blue-400">Return to Default View</button>
                 </div>

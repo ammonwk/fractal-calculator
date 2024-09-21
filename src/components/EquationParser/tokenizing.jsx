@@ -55,7 +55,6 @@ function isParenthesis(char) {
  * @returns {Array<string>} - The list of processed tokens.
  */
 export function tokenize(input, variables = []) {
-    console.log(input);
     const tokens = [];
     const extendedAllowedVariables = [...allowedVariables, ...variables];
     let i = 0;
@@ -227,6 +226,5 @@ export function tokenize(input, variables = []) {
     if (openParenCount > 0) {
         throw new Error("Unmatched opening parenthesis '('.");
     }
-    console.log(finalTokens);
     return finalTokens;
 }
