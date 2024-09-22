@@ -63,6 +63,8 @@ function Controls({
         };
     }, []);
 
+    console.log("graphicsQuality", graphicsQuality);
+
     const handleInputChange = (mathField) => {
         const inputEquation = mathField.latex();
         setLatexInput(inputEquation);
@@ -254,7 +256,15 @@ function Controls({
                             </span>
                         </label>
                     </div>
-                    <input id="graphics-quality" type="range" min="0" max="100" value={graphicsQuality} onChange={(event) => setGraphicsQuality(parseInt(event.target.value, 10))} className="w-full mt-1" />
+                    <input
+                        id="graphics-quality"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={graphicsQuality}
+                        onChange={(event) => setGraphicsQuality(parseInt(event.target.value, 10))}
+                        className="graphics-quality-slider w-full mt-1"
+                    />
 
                     {/* Advanced Options Toggle */}
                     <div className="mt-2 flex items-center">

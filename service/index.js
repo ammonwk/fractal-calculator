@@ -13,9 +13,7 @@ const mongoUri = `mongodb+srv://${config.userName}:${config.password}@${config.h
 const client = new MongoClient(mongoUri);
 
 
-console.error("(Connecting to Fractals...)");
 db = client.db('fractals');
-console.error("(Done)");
 
 // Connect to the database
 (async function testConnection() {
@@ -30,16 +28,6 @@ console.error("(Done)");
     console.log(`Unable to connect to database with ${mongoUri} because ${ex.message}`);
     process.exit(1);
 });
-
-// let db;
-// client.connect()
-//     .then(() => {
-//         db = client.db('fractals'); // Database name
-//         console.log('Connected to MongoDB');
-//     })
-//     .catch((err) => {
-//         console.error('Failed to connect to MongoDB', err);
-//     });
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));

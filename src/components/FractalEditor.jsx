@@ -1,4 +1,3 @@
-// components/FractalEditor.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FractalCanvas from './FractalCanvas/FractalCanvas';
@@ -6,8 +5,7 @@ import Controls from './Controls/Controls';
 import TopBar from './Controls/TopBar';
 import InfoButton from './Controls/InfoButton';
 import { saveFractalState } from './services/FractalService';
-import ShareModal from './Controls/ShareModal'; 
-
+import ShareModal from './Controls/ShareModal';
 
 function FractalEditor({
     initialInput,
@@ -34,7 +32,8 @@ function FractalEditor({
     const [pixelSize, setPixelSize] = useState(initialPixelSize);
     const [isJuliaSet, setIsJuliaSet] = useState(initialIsJuliaSet);
     const [shareModalVisible, setShareModalVisible] = useState({ visible: false, x: 0, y: 0 });
-    const [shareUrl, setShareUrl] = useState(''); // State for shareable URL
+    const [shareUrl, setShareUrl] = useState('');
+    const [graphicsQuality, setGraphicsQuality] = useState(70);
 
     const navigate = useNavigate();
 
@@ -61,6 +60,14 @@ function FractalEditor({
             console.error('Error saving fractal', error);
             return null;
         }
+    };
+
+    const handleGraphicsQualityChange = (quality) => {
+        setGraphicsQuality(quality);
+        const newPixelSize = quality > 75 ? 1 : quality > 50 ? 1 : quality > 25 ? 2 : 8;
+        const newIterations = quality > 75 ? 1000 : quality > 50 ? 500 : quality > 25 ? 250 : 100;
+        setPixelSize(newPixelSize);
+        setIterations(newIterations);
     };
 
     return (
@@ -108,13 +115,8 @@ function FractalEditor({
                 setFxaaIntensity={setFxaaIntensity}
                 pixelSize={pixelSize}
                 setPixelSize={setPixelSize}
-                graphicsQuality={70}
-                setGraphicsQuality={(quality) => {
-                    const newPixelSize = quality > 75 ? 1 : quality > 50 ? 1 : quality > 25 ? 2 : 8;
-                    const newIterations = quality > 75 ? 1000 : quality > 50 ? 500 : quality > 25 ? 250 : 100;
-                    setPixelSize(newPixelSize);
-                    setIterations(newIterations);
-                }}
+                graphicsQuality={graphicsQuality}
+                setGraphicsQuality={handleGraphicsQualityChange}
                 isJuliaSet={isJuliaSet}
                 handleToggleChange={() => setIsJuliaSet((prev) => !prev)}
                 handleSaveFractal={handleSaveFractal} // Pass down the modified handleSaveFractal
