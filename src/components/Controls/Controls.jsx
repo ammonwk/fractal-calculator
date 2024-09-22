@@ -63,8 +63,6 @@ function Controls({
         };
     }, []);
 
-    console.log("graphicsQuality", graphicsQuality);
-
     const handleInputChange = (mathField) => {
         const inputEquation = mathField.latex();
         setLatexInput(inputEquation);

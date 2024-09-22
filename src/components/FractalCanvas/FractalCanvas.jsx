@@ -1,9 +1,13 @@
-// FractalCanvas.js
 import React, { useEffect, useRef, useState } from 'react';
 import DraggableBead from './DraggableBead';
-import { fractalVertexShaderSource, fractalFragmentShaderSource, fxaaVertexShaderSource, fxaaFragmentShaderSource } from './shaders';
+import {
+    fractalVertexShaderSource,
+    fractalFragmentShaderSource,
+    fxaaVertexShaderSource,
+    fxaaFragmentShaderSource
+} from './shaders';
 import { useDragAndZoom } from './useDragAndZoom';
-import { compileShader, createProgram, resizeCanvasToDisplaySize } from './WebGLUtils';
+import { createProgram, resizeCanvasToDisplaySize } from './WebGLUtils';
 
 function FractalCanvas({
     equation,
@@ -20,12 +24,24 @@ function FractalCanvas({
 }) {
     const canvasRef = useRef();
     const animationFrameIdRef = useRef(null);
+
+    // State for Julia parameter (used in DraggableBead)
     const [juliaParam, setJuliaParam] = useState({ x: 0.0, y: 0.0 });
 
+    // Refs to hold WebGL resources
+    const framebufferRef = useRef(null);
+    const fractalTextureRef = useRef(null);
+
+    // Ref to hold the latest juliaParam without causing re-renders
+    const juliaParamRef = useRef(juliaParam);
+    useEffect(() => {
+        juliaParamRef.current = juliaParam;
+    }, [juliaParam]);
+
+    // Initialize drag and zoom functionality
     useDragAndZoom(canvasRef, zoom, offset, setZoom, setOffset);
 
     useEffect(() => {
-
         const canvas = canvasRef.current;
         const gl = canvas.getContext('webgl2', { antialias: false });
         if (!gl) {
@@ -33,14 +49,7 @@ function FractalCanvas({
             return;
         }
 
-        const resizeCanvas = () => {
-            resizeCanvasToDisplaySize(gl, canvas);
-        };
-
-        // Call resizeCanvas immediately to ensure correct size on mount
-        resizeCanvas();
-
-        // Construct shader programs dynamically
+        // Shader programs
         const fractalProgram = createProgram(
             gl,
             fractalVertexShaderSource,
@@ -52,46 +61,78 @@ function FractalCanvas({
             return;
         }
 
-        // Create geometry and setup framebuffer
+        // Create geometry (quad)
         const quadBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
         const quadVertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
         gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
 
-        // Create a lower-resolution framebuffer for rendering fractals
-        const framebuffer = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        // Function to set up or resize framebuffer and texture
+        const setupFramebuffer = () => {
+            // Compute the reduced resolution size based on current canvas size and pixelSize
+            const reducedWidth = Math.ceil(canvas.width / pixelSize);
+            const reducedHeight = Math.ceil(canvas.height / pixelSize);
 
-        // Compute the reduced resolution size after ensuring canvas is properly resized
-        const reducedWidth = Math.ceil(canvas.width / pixelSize);
-        const reducedHeight = Math.ceil(canvas.height / pixelSize);
+            // Clean up existing framebuffer and texture
+            if (framebufferRef.current) {
+                gl.deleteFramebuffer(framebufferRef.current);
+                framebufferRef.current = null;
+            }
+            if (fractalTextureRef.current) {
+                gl.deleteTexture(fractalTextureRef.current);
+                fractalTextureRef.current = null;
+            }
 
-        // Create a texture to store the fractal at a lower resolution
-        const fractalTexture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reducedWidth, reducedHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fractalTexture, 0);
+            // Create a new framebuffer
+            const framebuffer = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-            console.error('Framebuffer is not complete');
-            return;
-        }
+            // Create a texture to store the fractal at a lower resolution
+            const fractalTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reducedWidth, reducedHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fractalTexture, 0);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+                console.error('Framebuffer is not complete');
+            }
 
-        // Get attribute and uniform locations
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            // Update refs with new framebuffer and texture
+            framebufferRef.current = framebuffer;
+            fractalTextureRef.current = fractalTexture;
+        };
+
+        // Initial setup
+        setupFramebuffer();
+
+        // Handle canvas resizing
+        const handleResize = () => {
+            // Resize the canvas to match the display size
+            resizeCanvasToDisplaySize(gl, canvas, fractalTextureRef.current, framebufferRef.current);
+            // Re-setup framebuffer and texture after resizing
+            setupFramebuffer();
+        };
+
+        // Perform initial resize
+        handleResize();
+
+        // Add resize event listener
+        window.addEventListener('resize', handleResize);
+
+        // Get attribute and uniform locations for fractal program
         const fractalPositionLocation = gl.getAttribLocation(fractalProgram, 'position');
         const fractalResolutionLocation = gl.getUniformLocation(fractalProgram, 'u_resolution');
         const fractalOffsetLocation = gl.getUniformLocation(fractalProgram, 'u_offset');
         const fractalZoomLocation = gl.getUniformLocation(fractalProgram, 'u_zoom');
         const fractalTimeLocation = gl.getUniformLocation(fractalProgram, 'u_time');
-
-        // New uniforms for Julia Set
         const juliaParamLocation = gl.getUniformLocation(fractalProgram, 'u_juliaParam');
         const isJuliaSetLocation = gl.getUniformLocation(fractalProgram, 'u_isJuliaSet');
 
+        // Get attribute and uniform locations for FXAA program
         const fxaaPositionLocation = gl.getAttribLocation(fxaaProgram, 'position');
         const fxaaTextureLocation = gl.getUniformLocation(fxaaProgram, 'u_texture');
         const fxaaResolutionLocation = gl.getUniformLocation(fxaaProgram, 'u_resolution');
@@ -99,27 +140,32 @@ function FractalCanvas({
 
         let startTime = performance.now();
 
-        function animate(currentTime) {
+        // Animation loop
+        const animate = (currentTime) => {
             const elapsedTime = (currentTime - startTime) / 1000.0;
 
             // Render fractal to low-resolution framebuffer
-            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferRef.current);
+            const reducedWidth = Math.ceil(canvas.width / pixelSize);
+            const reducedHeight = Math.ceil(canvas.height / pixelSize);
             gl.viewport(0, 0, reducedWidth, reducedHeight);
             gl.useProgram(fractalProgram);
             gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
             gl.enableVertexAttribArray(fractalPositionLocation);
             gl.vertexAttribPointer(fractalPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
+            // Set uniforms
             gl.uniform2f(fractalResolutionLocation, reducedWidth, reducedHeight);
             gl.uniform2f(fractalOffsetLocation, offset.x, offset.y);
             gl.uniform1f(fractalZoomLocation, zoom);
             gl.uniform1f(fractalTimeLocation, elapsedTime);
-            gl.uniform2f(juliaParamLocation, juliaParam.x, juliaParam.y); // Pass Julia parameter
-            gl.uniform1i(isJuliaSetLocation, inJuliaSetMode ? 1 : 0); // Pass Julia set mode
+            gl.uniform2f(juliaParamLocation, juliaParamRef.current.x, juliaParamRef.current.y);
+            gl.uniform1i(isJuliaSetLocation, inJuliaSetMode ? 1 : 0);
 
+            // Draw fractal
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-            // Render the low-resolution framebuffer to the screen
+            // Render the low-resolution framebuffer to the screen with FXAA
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.useProgram(fxaaProgram);
@@ -128,35 +174,49 @@ function FractalCanvas({
             gl.vertexAttribPointer(fxaaPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fractalTexture);
+            gl.bindTexture(gl.TEXTURE_2D, fractalTextureRef.current);
             gl.uniform1i(fxaaTextureLocation, 0);
             gl.uniform2f(fxaaResolutionLocation, canvas.width, canvas.height);
             gl.uniform1f(fxaaIntensityLocation, 2 - fxaaIntensity);
+
+            // Draw FXAA
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+            // Request the next frame
             animationFrameIdRef.current = requestAnimationFrame(animate);
-        }
+        };
 
+        // Start the animation loop
         animationFrameIdRef.current = requestAnimationFrame(animate);
 
-        window.addEventListener('resize', resizeCanvas);
-
+        // Cleanup on unmount
         return () => {
-            window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('resize', handleResize);
             if (animationFrameIdRef.current) {
                 cancelAnimationFrame(animationFrameIdRef.current);
             }
             gl.deleteProgram(fractalProgram);
             gl.deleteProgram(fxaaProgram);
             gl.deleteBuffer(quadBuffer);
-            gl.deleteFramebuffer(framebuffer);
-            gl.deleteTexture(fractalTexture);
+            if (framebufferRef.current) gl.deleteFramebuffer(framebufferRef.current);
+            if (fractalTextureRef.current) gl.deleteTexture(fractalTextureRef.current);
         };
-    }, [equation, iterations, cutoff, zoom, offset, colorScheme, fxaaIntensity, pixelSize, inJuliaSetMode, juliaParam]);
+    }, [
+        equation,
+        iterations,
+        cutoff,
+        zoom,
+        offset,
+        colorScheme,
+        fxaaIntensity,
+        pixelSize,
+        inJuliaSetMode
+        // Note: 'juliaParam' is intentionally excluded from dependencies for now
+    ]);
 
     return (
-        <div style={{ position: 'relative' }}>
-            <canvas ref={canvasRef} style={{ display: 'block' }}></canvas>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }}></canvas>
             {inJuliaSetMode && (
                 <DraggableBead
                     canvasRef={canvasRef}
