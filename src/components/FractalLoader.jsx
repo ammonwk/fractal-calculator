@@ -39,6 +39,7 @@ function FractalLoader() {
             initialFxaaIntensity={fractalState.fxaaIntensity}
             initialPixelSize={fractalState.pixelSize}
             initialIsJuliaSet={fractalState.inJuliaSetMode}
+            initialJuliaParam={fractalState.juliaParam}
         />
     );
 }

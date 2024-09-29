@@ -1,45 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 function VariableControl({ name, variable, onVariableChange, onVariableDelete }) {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [playMode, setPlayMode] = useState('loop'); // 'loop', 'ping-pong', 'rise'
-    const [speed, setSpeed] = useState(60); // Default speed is 1
     const intervalRef = useRef(null);
-    const [direction, setDirection] = useState(1); // 1 for ascending, -1 for descending
-    const [isExpanded, setIsExpanded] = useState(false); // State to handle dropdown visibility
-
     const onPlayRef = useRef();
 
+    // Local update helper to trigger onVariableChange with updated variable data
+    const updateVariable = (updatedFields) => {
+        onVariableChange(name, { ...variable, ...updatedFields });
+    };
+
+    // Update onPlayRef function when dependencies change
     useEffect(() => {
         onPlayRef.current = () => {
-            // Calculate the new value based on the current variable state
-            let newValue = variable.value + variable.step * direction;
+            let newValue = variable.value + variable.step;
 
-            if (playMode === 'loop') {
+            if (variable.playMode === 'loop') {
                 if (newValue > variable.max) {
                     newValue = variable.min;
                 }
                 if (newValue < variable.min) {
-                    newValue = variable.min;
+                    newValue = variable.max;
                 }
-            } else if (playMode === 'ping-pong') {
+            } else if (variable.playMode === 'bounce') {
                 if (newValue >= variable.max || newValue <= variable.min) {
-                    setDirection((prevDirection) => -prevDirection);
+                    updateVariable({
+                        step: -variable.step,
+                        value: Math.max(variable.min + 0.01, Math.min(newValue, variable.max - 0.01))
+                    });
                     newValue = Math.max(variable.min, Math.min(newValue, variable.max));
+                    return; // Exit early since we've already updated the state
                 }
-            } else if (playMode === 'rise') {
-                if (newValue > variable.max) {
+            } else if (variable.playMode === 'rise') {
+                if (newValue < variable.min) {
                     newValue = variable.min;
                 }
             }
 
             // Pass the updated variable object to onVariableChange
-            onVariableChange(name, { ...variable, value: newValue });
+            updateVariable({ value: newValue });
         };
-    }, [playMode, direction, name, onVariableChange, variable]);
+    }, [variable]);
 
+    // Handle play/pause based on isPlaying
     useEffect(() => {
-        if (!isPlaying) {
+        if (!variable.isPlaying) {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null; // Clear reference to avoid potential issues
@@ -47,10 +51,9 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
             return;
         }
 
-        // Start the interval using the latest version of onPlay
         intervalRef.current = setInterval(() => {
             if (onPlayRef.current) onPlayRef.current();
-        }, 1000 / speed); // Adjust interval based on speed (fixed to 1000ms instead of 100)
+        }, 1000 / variable.speed);
 
         return () => {
             if (intervalRef.current) {
@@ -58,60 +61,63 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                 intervalRef.current = null;
             }
         };
-    }, [isPlaying, speed]);
+    }, [variable.isPlaying, variable.speed]);
 
+    // Handle play/pause toggle
     const handlePlayToggle = () => {
-        setIsPlaying((prevIsPlaying) => !prevIsPlaying);
+        updateVariable({ isPlaying: !variable.isPlaying });
     };
 
+    // Handle value change for variable.value
     const handleValueChange = (event) => {
         const newValue = parseFloat(event.target.value);
-        onVariableChange(name, { ...variable, value: newValue });
+        updateVariable({ value: newValue });
     };
 
     const handleDelete = () => {
         onVariableDelete(name);
     };
 
+    // Handle min, max, and step changes
     const handleMinChange = (event) => {
-        const newMin = parseFloat(event.target.value);
-        onVariableChange(name, { ...variable, min: newMin });
+        updateVariable({ min: parseFloat(event.target.value) });
     };
 
     const handleMaxChange = (event) => {
-        const newMax = parseFloat(event.target.value);
-        onVariableChange(name, { ...variable, max: newMax });
+        updateVariable({ max: parseFloat(event.target.value) });
     };
 
     const handleStepChange = (event) => {
-        const newStep = parseFloat(event.target.value);
-        onVariableChange(name, { ...variable, step: newStep });
+        updateVariable({ step: parseFloat(event.target.value) });
     };
 
+    // Handle slider change
     const handleSliderChange = (event) => {
-        const newValue = parseFloat(event.target.value);
-        onVariableChange(name, { ...variable, value: newValue });
+        updateVariable({ value: parseFloat(event.target.value) });
     };
 
+    // Handle play mode change
     const handlePlayModeChange = (event) => {
-        setPlayMode(event.target.value);
+        updateVariable({ playMode: event.target.value });
     };
 
+    // Handle speed change
     const handleSpeedChange = (event) => {
-        setSpeed(parseFloat(event.target.value));
+        updateVariable({ speed: parseFloat(event.target.value) });
     };
 
+    // Toggle expand/collapse of the control panel
     const toggleExpand = () => {
-        setIsExpanded((prevIsExpanded) => !prevIsExpanded);
+        updateVariable({ isExpanded: !variable.isExpanded });
     };
-
+    
     return (
         <div className="bg-gray-700 p-2 rounded mt-2">
             <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold">{name}:</label>
                 <input
                     type="number"
-                    value={variable.value}
+                    value={parseFloat(variable.value.toPrecision(12))} // Round to step decimal places
                     onChange={handleValueChange}
                     className="w-20 p-1 bg-gray-800 rounded text-white"
                 />
@@ -132,10 +138,10 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                 </button>
                 {/* Dropdown Button */}
                 <button onClick={toggleExpand} className="dropdown-button text-white ml-2">
-                    {isExpanded ? '▲' : '▼'}
+                    {variable.isExpanded ? '▲' : '▼'}
                 </button>
             </div>
-            {isExpanded && (
+            {variable.isExpanded && (
                 <div>
                     <div className="mt-2 flex items-center justify-between">
                         {/* Min, Max, Step Inputs */}
@@ -167,7 +173,33 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                             />
                         </div>
                         <button onClick={handlePlayToggle} className="ml-2 p-1 bg-blue-500 rounded text-white">
-                            {isPlaying ? 'Pause' : 'Play'}
+                            {variable.isPlaying ? (
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6" // Increase size of the pause icon
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zM14 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            ) : (
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6" // You can also increase/decrease this for the play icon size
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M5 4.5a1 1 0 011.54-.84l8 5a1 1 0 010 1.68l-8 5A1 1 0 015 14.5v-10z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            )}
                         </button>
                     </div>
                     {/* Play Mode and Speed Controls */}
@@ -175,12 +207,12 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                         <div className="flex items-center justify-between">
                             <label className="text-xs">Play Mode:</label>
                             <select
-                                value={playMode}
+                                value={variable.playMode}
                                 onChange={handlePlayModeChange}
                                 className="w-18 p-1 bg-gray-800 rounded text-white text-xs"
                             >
                                 <option value="loop">Loop</option>
-                                <option value="ping-pong">Bounce</option>
+                                <option value="bounce">Bounce</option>
                                 <option value="rise">Rise</option>
                             </select>
                             <label className="text-xs">Fps:</label>
@@ -189,7 +221,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                                 min="0.1"
                                 max="5"
                                 step="0.1"
-                                value={speed}
+                                value={variable.speed}
                                 onChange={handleSpeedChange}
                                 className="w-6 p-1 bg-gray-800 rounded text-white text-xs"
                             />
@@ -201,7 +233,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                             type="range"
                             min={variable.min}
                             max={variable.max}
-                            step={variable.step}
+                            step={Math.abs(variable.step)}  // Ensure step is always positive for the slider
                             value={variable.value}
                             onChange={handleSliderChange}
                             className="w-full"

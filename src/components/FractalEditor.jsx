@@ -18,7 +18,8 @@ function FractalEditor({
     initialVariables,
     initialFxaaIntensity,
     initialPixelSize,
-    initialIsJuliaSet
+    initialIsJuliaSet,
+    initialJuliaParam
 }) {
     const [input, setInput] = useState(initialInput);
     const [equation, setEquation] = useState(initialEquation);
@@ -34,6 +35,7 @@ function FractalEditor({
     const [shareModalVisible, setShareModalVisible] = useState({ visible: false, x: 0, y: 0 });
     const [shareUrl, setShareUrl] = useState('');
     const [graphicsQuality, setGraphicsQuality] = useState(70);
+    const [juliaParam, setJuliaParam] = useState(initialJuliaParam);
 
     const navigate = useNavigate();
 
@@ -50,7 +52,9 @@ function FractalEditor({
             fxaaIntensity,
             pixelSize,
             inJuliaSetMode: isJuliaSet,
+            juliaParam
         };
+        console.log("Saved Fractal State", fractalState);
 
         try {
             const id = await saveFractalState(fractalState);
@@ -87,6 +91,8 @@ function FractalEditor({
                     fxaaIntensity={fxaaIntensity}
                     pixelSize={pixelSize}
                     inJuliaSetMode={isJuliaSet}
+                    juliaParam={juliaParam}
+                    setJuliaParam={setJuliaParam}
                 />
             </div>
             <Controls
@@ -109,7 +115,7 @@ function FractalEditor({
                 })}
                 onNewVariable={(name) => setVariables((prev) => ({
                     ...prev,
-                    [name]: { value: 1, min: 1, max: 3, step: 0.001, animationMode: 'none', isPlaying: false },
+                    [name]: { value: 1, min: 1, max: 3, step: 0.001, animationMode: 'none', isPlaying: false, playMode: 'loop', speed: 60, isExpanded: false }
                 }))}
                 fxaaIntensity={fxaaIntensity}
                 setFxaaIntensity={setFxaaIntensity}

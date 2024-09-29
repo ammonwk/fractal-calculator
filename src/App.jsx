@@ -12,7 +12,7 @@ function App() {
           initialInput={'z^2+c'}
           initialEquation={'vec2 temp_0 = (vec2(z.x * z.x - z.y * z.y, z.x * z.y + z.y * z.x) + c);\nz = temp_0;'}
           initialIterations={800}
-          initialCutoff={10.0}
+          initialCutoff={100.0}
           initialZoom={0.8}
           initialOffset={{ x: 0.7, y: -0.12 }}
           initialColorScheme={'Rainbow'}
@@ -20,6 +20,7 @@ function App() {
           initialFxaaIntensity={2}
           initialPixelSize={1}
           initialIsJuliaSet={false}
+          initialJuliaParam={{ x: 0.0, y: 0.0 }}
         />} />
         <Route path="/share/:id" element={<FractalLoader />} />
       </Routes>

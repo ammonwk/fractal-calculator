@@ -20,13 +20,12 @@ function FractalCanvas({
     colorScheme,
     fxaaIntensity,
     pixelSize,
-    inJuliaSetMode
+    inJuliaSetMode,
+    juliaParam,
+    setJuliaParam
 }) {
     const canvasRef = useRef();
     const animationFrameIdRef = useRef(null);
-
-    // State for Julia parameter (used in DraggableBead)
-    const [juliaParam, setJuliaParam] = useState({ x: 0.0, y: 0.0 });
 
     // Refs to hold WebGL resources
     const framebufferRef = useRef(null);
