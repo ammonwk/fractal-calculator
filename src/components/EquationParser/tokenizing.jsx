@@ -1,7 +1,7 @@
-const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log']; // List of known functions
-const allowedVariables = ['z', 'c', 'i']; // Base allowed variables; can be extended as needed
+const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log'];
+const allowedVariables = ['z', 'c', 'i', 'e'];
 
-// List of LaTeX commands to ignore (primarily for spacing and formatting)
+// spacing and formatting commands to ignore
 const ignoredCommands = [
     ' ',      // \ 
     'quad',   // \quad
@@ -13,6 +13,22 @@ const ignoredCommands = [
     'left',   // \left
     'right'   // \right
 ];
+
+const knownConstants = {
+    'pi': '3.141592653589793',
+    'e': '2.718281828459045',
+    'phi': '1.61803398875', // Golden ratio
+    'gamma': '0.5772156649', // Euler-Mascheroni constant
+};
+
+/**
+ * Checks if a string is a known constant.
+ * @param {string} str 
+ * @returns {boolean}
+ */
+function isConstant(str) {
+    return knownConstants.hasOwnProperty(str);
+}
 
 /**
  * Checks if a string is a known function.
@@ -203,8 +219,10 @@ export function tokenize(input, variables = []) {
                 i++;
             }
 
-            // Handle known functions
-            if (isFunction(cmd)) {
+            if (isConstant(cmd)) {
+                tokens.push({ type: 'constant', value: knownConstants[cmd] });
+                continue;
+            } else if (isFunction(cmd)) {
                 tokens.push({ type: 'function', value: cmd });
             }
             // Handle special operators like \cdot
@@ -277,12 +295,16 @@ export function tokenize(input, variables = []) {
                     i++;
                 }
             }
-            // Validate variable
-            const baseVar = varName.split('_')[0];
-            if (!extendedAllowedVariables.includes(baseVar)) {
-                throw new Error(`Invalid variable '${baseVar}' found. Allowed variables are: ${extendedAllowedVariables.join(', ')}.`);
+            
+            if (varName === 'e') {
+                tokens.push({ type: 'constant', value: '2.718281828459045' });
+            } else { // Validate variable
+                const baseVar = varName.split('_')[0];
+                if (!extendedAllowedVariables.includes(baseVar)) {
+                    throw new Error(`Invalid variable '${baseVar}' found. Allowed variables are: ${extendedAllowedVariables.join(', ')}.`);
+                }
+                tokens.push({ type: 'variable', value: varName });
             }
-            tokens.push({ type: 'variable', value: varName });
             continue;
         }
 
@@ -348,9 +370,12 @@ export function tokenize(input, variables = []) {
             const nextIsFunction = knownFunctions.includes(nextToken);
             const nextIsOpeningParen = nextToken === '(';
 
+            const currentIsFunction = knownFunctions.includes(currentToken);
+
             const needsMultiplication =
                 (currentIsNumber || currentIsVariable || currentIsClosingParen) &&
-                (nextIsVariable || nextIsNumber || nextIsFunction || nextIsOpeningParen);
+                (nextIsVariable || nextIsNumber || nextIsFunction || nextIsOpeningParen) &&
+                !currentIsFunction;  // Prevent multiplication between a function and its argument
 
             if (needsMultiplication) {
                 processedTokens.push('*');
