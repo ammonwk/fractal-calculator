@@ -69,11 +69,13 @@ function Controls({
         clearTimeout(timeoutRef.current);
 
         try {
-            const jsEquation = convertLatexToJS(inputEquation);
-            const tokens = tokenize(jsEquation, Object.keys(variables));
+            console.log('Input equation:', inputEquation);
+            const tokens = tokenize(inputEquation, Object.keys(variables));
+            console.log('Tokens:', tokens);
             const replacedTokens = tokens.map(token => (variables.hasOwnProperty(token) ? variables[token].value : token));
             const syntaxTree = parse(replacedTokens);
             const glslCode = translateToGLSL(syntaxTree);
+            console.log('GLSL code:', glslCode);
             onEquationChange(glslCode);
             setError(null);
         } catch (error) {
@@ -85,25 +87,6 @@ function Controls({
             }
         }
     };
-
-    function convertLatexToJS(latex) {
-        let jsEquation = latex;
-        const latexToFunctionMap = {
-            'cdot': '*',
-            '\\sin': 'sin',
-            '\\cos': 'cos',
-            '\\tan': 'tan',
-            '\\exp': 'exp',
-            '\\log': 'log',
-            '\\sqrt': 'sqrt'
-        };
-        for (const [latexFunc, glslFunc] of Object.entries(latexToFunctionMap)) {
-            jsEquation = jsEquation.replace(new RegExp(latexFunc, 'g'), glslFunc);
-        }
-        jsEquation = jsEquation.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1 / $2)');
-        jsEquation = jsEquation.replace(/\\left/g, '').replace(/\\right/g, '').replace(/\\text\{([^}]*)\}/g, '$1').replace(/\{([^}]*)\}/g, '($1)').replace(/\^/g, '**').replace(/\\/g, '').replace(/\{/g, '(').replace(/\}/g, ')');
-        return jsEquation;
-    }
 
     useEffect(() => {
         if (!isInitialRender.current) { // Check if it's not the first render

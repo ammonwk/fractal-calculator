@@ -1,15 +1,26 @@
 const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log']; // List of known functions
 const allowedVariables = ['z', 'c', 'i']; // Base allowed variables; can be extended as needed
 
+// List of LaTeX commands to ignore (primarily for spacing and formatting)
+const ignoredCommands = [
+    ' ',      // \ 
+    'quad',   // \quad
+    'qquad',  // \qquad
+    ',',      // \, 
+    ';',      // \;
+    'hspace', // \hspace{...}
+    'vspace', // \vspace{...}
+    'left',   // \left
+    'right'   // \right
+];
+
 /**
  * Checks if a string is a known function.
  * @param {string} str 
  * @returns {boolean}
  */
 function isFunction(str) {
-    // Remove leading backslash if present (e.g., \sin -> sin)
-    const funcName = str.startsWith('\\') ? str.slice(1) : str;
-    return knownFunctions.includes(funcName);
+    return knownFunctions.includes(str);
 }
 
 /**
@@ -36,21 +47,126 @@ function isDigit(char) {
  * @returns {boolean}
  */
 function isOperator(char) {
-    return /[+\-*/^=,|{}]/.test(char);
+    return /[+\-*/^=|]/.test(char);
 }
 
 /**
- * Checks if a character is a parenthesis.
+ * Checks if a character is a parenthesis or brace.
  * @param {string} char 
  * @returns {boolean}
  */
 function isParenthesis(char) {
-    return /[()]/.test(char);
+    return /[(){}]/.test(char);
 }
 
 /**
- * Tokenizes the input mathematical expression.
- * @param {string} input - The input string to tokenize.
+ * Recursively processes tokens to handle nested \frac commands.
+ * @param {Array<Object>} tokens - The list of tokens to process.
+ * @param {number} start - The starting index for processing.
+ * @returns {Object} - An object containing the transformed tokens and the new index.
+ */
+function processFrac(tokens, start) {
+    let transformed = [];
+    let i = start;
+
+    // Ensure the current token is 'frac'
+    if (!(tokens[i].type === 'operator' && tokens[i].value === 'frac')) {
+        throw new Error(`Expected 'frac' at position ${i}, found '${tokens[i].value}'.`);
+    }
+    i++; // Move past 'frac'
+
+    // Process numerator
+    if (!(tokens[i].type === 'parenthesis' && tokens[i].value === '(')) {
+        throw new Error(`Expected '(' after '\\frac' for numerator at position ${i}, found '${tokens[i].value}'.`);
+    }
+    i++; // Skip '('
+    const numeratorResult = extractGroup(tokens, i);
+    const numeratorTokens = numeratorResult.tokens;
+    i = numeratorResult.newIndex;
+
+    // Process denominator
+    if (!(tokens[i].type === 'parenthesis' && tokens[i].value === '(')) {
+        throw new Error(`Expected '(' after '\\frac{numerator}' for denominator at position ${i}, found '${tokens[i].value}'.`);
+    }
+    i++; // Skip '('
+    const denominatorResult = extractGroup(tokens, i);
+    const denominatorTokens = denominatorResult.tokens;
+    i = denominatorResult.newIndex;
+
+    // Recursively process numerator and denominator in case they contain 'frac'
+    const processedNumerator = processTokenList(numeratorTokens);
+    const processedDenominator = processTokenList(denominatorTokens);
+
+    // Combine into (numerator / denominator)
+    transformed.push('(');
+    transformed.push(...processedNumerator);
+    transformed.push('/');
+    transformed.push(...processedDenominator);
+    transformed.push(')');
+
+    return { tokens: transformed, newIndex: i };
+}
+
+/**
+ * Extracts a group of tokens enclosed by matching parentheses.
+ * @param {Array<Object>} tokens - The list of tokens.
+ * @param {number} start - The starting index (after opening parenthesis).
+ * @returns {Object} - An object containing the extracted tokens and the new index.
+ */
+function extractGroup(tokens, start) {
+    let group = [];
+    let braceCount = 1;
+    let i = start;
+
+    while (i < tokens.length && braceCount > 0) {
+        const tok = tokens[i];
+        if (tok.type === 'parenthesis') {
+            if (tok.value === '(') braceCount++;
+            else if (tok.value === ')') braceCount--;
+        }
+        if (braceCount > 0) {
+            group.push(tok);
+        }
+        i++;
+    }
+
+    if (braceCount !== 0) {
+        throw new Error(`Unmatched parenthesis starting at position ${start - 1}.`);
+    }
+
+    return { tokens: group, newIndex: i };
+}
+
+/**
+ * Processes a list of tokens, handling 'frac' recursively.
+ * @param {Array<Object>} tokens - The list of tokens to process.
+ * @returns {Array<string>} - The transformed token values.
+ */
+function processTokenList(tokens) {
+    const transformed = [];
+    let i = 0;
+
+    while (i < tokens.length) {
+        const tok = tokens[i];
+
+        if (tok.type === 'operator' && tok.value === 'frac') {
+            const fracResult = processFrac(tokens, i);
+            transformed.push(...fracResult.tokens);
+            i = fracResult.newIndex;
+            continue;
+        }
+
+        // If the token is a function, variable, number, operator, or parenthesis, add it directly
+        transformed.push(tok.value);
+        i++;
+    }
+
+    return transformed;
+}
+
+/**
+ * Tokenizes the input LaTeX mathematical expression.
+ * @param {string} input - The LaTeX input string to tokenize.
  * @param {Array<string>} variables - Additional allowed variables.
  * @returns {Array<string>} - The list of processed tokens.
  */
@@ -68,56 +184,64 @@ export function tokenize(input, variables = []) {
             continue;
         }
 
-        // Handle functions (with or without leading backslash)
-        if (char === '\\' || isLetter(char)) {
+        // Handle LaTeX commands (functions and operators)
+        if (char === '\\') {
             let start = i;
-            if (char === '\\') {
-                i++; // Skip the backslash
+            i++; // Skip the backslash
+
+            // Handle backslash followed by space (\ )
+            if (input[i] === ' ') {
+                // It's a space command; ignore it
+                i++; // Skip the space
+                continue;
             }
-            // Collect all consecutive letters
+
+            // Collect all consecutive letters for the command
+            let cmd = '';
             while (i < input.length && isLetter(input[i])) {
+                cmd += input[i];
                 i++;
             }
-            const funcOrVar = input.slice(start, i);
-            if (isFunction(funcOrVar)) {
-                tokens.push({ type: 'function', value: funcOrVar });
-            } else {
-                // Handle variables with optional subscripts (e.g., z_0)
-                let varName = '';
-                let j = start;
-                // Collect letters and possible subscripts
-                while (j < input.length) {
-                    const currentChar = input[j];
-                    if (isLetter(currentChar)) {
-                        varName += currentChar;
-                        j++;
-                        // Check for subscript
-                        if (input[j] === '_') {
-                            varName += '_';
-                            j++;
-                            // Collect subscript digits
-                            while (j < input.length && isDigit(input[j])) {
-                                varName += input[j];
-                                j++;
-                            }
-                        } else {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                // Validate each variable character
-                for (let k = 0; k < varName.length; k++) {
-                    const currentChar = varName[k];
-                    if (currentChar === '_') continue; // Skip underscore
-                    if (!extendedAllowedVariables.includes(currentChar)) {
-                        throw new Error(`Invalid variable '${currentChar}' found. Allowed variables are: ${extendedAllowedVariables.join(', ')}.`);
-                    }
-                }
-                tokens.push({ type: 'variable', value: varName });
-                i = j;
+
+            // Handle known functions
+            if (isFunction(cmd)) {
+                tokens.push({ type: 'function', value: cmd });
+            }
+            // Handle special operators like \cdot
+            else if (cmd === 'cdot') {
+                tokens.push({ type: 'operator', value: '*' });
+            }
+            // Handle \frac as a special case
+            else if (cmd === 'frac') {
+                tokens.push({ type: 'operator', value: 'frac' });
+            }
+            // Handle ignored commands
+            else if (ignoredCommands.includes(cmd)) {
+                // Ignore the command and continue
                 continue;
+            }
+            // Handle commands with arguments like \hspace{...}
+            else if (cmd === 'hspace' || cmd === 'vspace') {
+                // Expecting a brace-enclosed argument, skip it
+                if (input[i] === '{') {
+                    let braceCount = 1;
+                    i++; // Skip the opening brace
+                    while (i < input.length && braceCount > 0) {
+                        if (input[i] === '{') braceCount++;
+                        else if (input[i] === '}') braceCount--;
+                        i++;
+                    }
+                }
+                continue;
+            }
+            // Handle other ignored commands with potential arguments
+            else if (ignoredCommands.some(ic => cmd.startsWith(ic))) {
+                // For any other commands that start with an ignored command, skip them
+                continue;
+            }
+            // Handle unknown commands or throw error
+            else {
+                throw new Error(`Unknown LaTeX command '\\${cmd}' at position ${start}.`);
             }
             continue;
         }
@@ -140,6 +264,28 @@ export function tokenize(input, variables = []) {
             continue;
         }
 
+        // Handle variables (with optional subscripts)
+        if (isLetter(char)) {
+            let varName = char;
+            i++;
+            // Handle subscripts like _0, _1, etc.
+            if (input[i] === '_') {
+                varName += '_';
+                i++;
+                while (i < input.length && (isDigit(input[i]) || isLetter(input[i]))) {
+                    varName += input[i];
+                    i++;
+                }
+            }
+            // Validate variable
+            const baseVar = varName.split('_')[0];
+            if (!extendedAllowedVariables.includes(baseVar)) {
+                throw new Error(`Invalid variable '${baseVar}' found. Allowed variables are: ${extendedAllowedVariables.join(', ')}.`);
+            }
+            tokens.push({ type: 'variable', value: varName });
+            continue;
+        }
+
         // Handle operators
         if (isOperator(char)) {
             // Handle '**' as exponentiation if needed
@@ -153,9 +299,13 @@ export function tokenize(input, variables = []) {
             continue;
         }
 
-        // Handle parentheses
+        // Handle parentheses and braces
         if (isParenthesis(char)) {
-            tokens.push({ type: 'parenthesis', value: char });
+            // Convert braces to parentheses for uniformity
+            const mappedChar = (char === '{' || char === '}') ?
+                (char === '{' ? '(' : ')') :
+                char;
+            tokens.push({ type: 'parenthesis', value: mappedChar });
             i++;
             continue;
         }
@@ -164,42 +314,43 @@ export function tokenize(input, variables = []) {
         throw new Error(`Invalid character '${char}' at position ${i}.`);
     }
 
+    // At this point, tokens contain all the tokens including 'frac' operators
+    // Now, process the tokens to handle 'frac's recursively
+    const finalTokens = processTokenList(tokens);
+
     // Post-processing: Handle implicit multiplication and function parentheses
     const processedTokens = [];
-    for (let j = 0; j < tokens.length; j++) {
-        const currentToken = tokens[j];
-        const nextToken = tokens[j + 1];
+    for (let j = 0; j < finalTokens.length; j++) {
+        const currentToken = finalTokens[j];
+        const nextToken = finalTokens[j + 1];
 
-        processedTokens.push(currentToken.value);
+        processedTokens.push(currentToken);
 
         // Handle functions followed by variables or numbers (e.g., "sin z" should become "sin(z)")
-        if (currentToken.type === 'function') {
-            // Insert '(' after function
-            if (nextToken && nextToken.type === 'parenthesis' && nextToken.value === '(') {
-                // Function already followed by '(', so nothing more needed
-                continue;
-            }
-            // Handle functions followed by variables or numbers (e.g., "sin z" -> "sin(z)")
-            else if (nextToken && (nextToken.type === 'variable' || nextToken.type === 'number')) {
+        if (knownFunctions.includes(currentToken)) {
+            if (nextToken && nextToken !== '(' && !isOperator(nextToken)) {
                 processedTokens.push('(');
-                processedTokens.push(nextToken.value);
+                processedTokens.push(nextToken);
                 processedTokens.push(')');
                 j++; // Skip the next token since it's already processed
-                continue; // Continue to the next iteration
-            } else {
-                throw new Error(`Function '${currentToken.value}' must be followed by a variable, number, or '('.`);
+                continue;
             }
         }
 
         // Insert implicit multiplication
         if (nextToken) {
-            const currentType = currentToken.type;
-            const nextType = nextToken.type;
+            const currentIsNumber = /^[0-9.]+$/.test(currentToken);
+            const currentIsVariable = /^[A-Za-z][A-Za-z0-9_]*$/.test(currentToken);
+            const currentIsClosingParen = currentToken === ')';
+
+            const nextIsNumber = /^[0-9.]+$/.test(nextToken);
+            const nextIsVariable = /^[A-Za-z][A-Za-z0-9_]*$/.test(nextToken);
+            const nextIsFunction = knownFunctions.includes(nextToken);
+            const nextIsOpeningParen = nextToken === '(';
 
             const needsMultiplication =
-                (currentType === 'number' && (nextType === 'variable' || nextType === 'function')) ||
-                (currentType === 'variable' && (nextType === 'number' || nextType === 'variable' || nextType === 'function')) ||
-                (currentType === 'parenthesis' && currentToken.value === ')' && (nextType === 'number' || nextType === 'variable' || nextType === 'function'));
+                (currentIsNumber || currentIsVariable || currentIsClosingParen) &&
+                (nextIsVariable || nextIsNumber || nextIsFunction || nextIsOpeningParen);
 
             if (needsMultiplication) {
                 processedTokens.push('*');
@@ -207,24 +358,22 @@ export function tokenize(input, variables = []) {
         }
     }
 
-    // Remove any unmatched '(' inserted for functions
-    let finalTokens = [];
+    // Validate parentheses
     let openParenCount = 0;
-    processedTokens.forEach(token => {
+    for (let token of processedTokens) {
         if (token === '(') {
             openParenCount++;
         } else if (token === ')') {
-            if (openParenCount > 0) {
-                openParenCount--;
-            } else {
+            openParenCount--;
+            if (openParenCount < 0) {
                 throw new Error("Unmatched closing parenthesis ')'.");
             }
         }
-        finalTokens.push(token);
-    });
-    // If there are unmatched '(', throw an error
+    }
     if (openParenCount > 0) {
         throw new Error("Unmatched opening parenthesis '('.");
     }
-    return finalTokens;
+
+    // Return the processed tokens
+    return processedTokens;
 }

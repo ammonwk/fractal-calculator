@@ -17,6 +17,7 @@ export function translateToGLSL(node) {
         return { glsl: tempVar, isComplex };
     }
 
+    // Promote a real value to complex by setting the imaginary part to 0.0
     function promoteToComplex(value) {
         if (value.isComplex) {
             return value.glsl;
@@ -25,6 +26,7 @@ export function translateToGLSL(node) {
         }
     }
 
+    // Process the AST node recursively
     function processNode(node) {
         switch (node.type) {
             case 'binary': {
@@ -49,34 +51,40 @@ export function translateToGLSL(node) {
                     case '*':
                         if (left.isComplex && right.isComplex) {
                             return cacheExpression(
-                                `vec2(${left.glsl}.x * ${right.glsl}.x - ${left.glsl}.y * ${right.glsl}.y, ${left.glsl}.x * ${right.glsl}.y + ${left.glsl}.y * ${right.glsl}.x)`,
+                                `complexMul(${left.glsl}, ${right.glsl})`,
                                 true
                             );
                         } else if (left.isComplex || right.isComplex) {
                             const leftComplex = promoteToComplex(left);
                             const rightComplex = promoteToComplex(right);
                             return cacheExpression(
-                                `vec2(${leftComplex}.x * ${rightComplex}.x - ${leftComplex}.y * ${rightComplex}.y, ${leftComplex}.x * ${rightComplex}.y + ${leftComplex}.y * ${rightComplex}.x)`,
+                                `complexMul(${leftComplex}, ${rightComplex})`,
                                 true
                             );
                         }
-                        return cacheExpression(`(${left.glsl} * ${right.glsl})`, false);
+                        return {
+                            glsl: `(${left.glsl} * ${right.glsl})`,
+                            isComplex: false
+                        };
                     case '/':
                         if (left.isComplex && right.isComplex) {
                             return cacheExpression(
-                                `vec2((${left.glsl}.x * ${right.glsl}.x + ${left.glsl}.y * ${right.glsl}.y) / (${right.glsl}.x * ${right.glsl}.x + ${right.glsl}.y * ${right.glsl}.y), (${left.glsl}.y * ${right.glsl}.x - ${left.glsl}.x * ${right.glsl}.y) / (${right.glsl}.x * ${right.glsl}.x + ${right.glsl}.y * ${right.glsl}.y))`,
+                                `complexDiv(${left.glsl}, ${right.glsl})`,
                                 true
                             );
                         } else if (left.isComplex || right.isComplex) {
                             const leftComplex = promoteToComplex(left);
                             const rightComplex = promoteToComplex(right);
                             return cacheExpression(
-                                `vec2((${leftComplex}.x * ${rightComplex}.x + ${leftComplex}.y * ${rightComplex}.y) / (${rightComplex}.x * ${rightComplex}.x + ${rightComplex}.y * ${rightComplex}.y), (${leftComplex}.y * ${rightComplex}.x - ${leftComplex}.x * ${rightComplex}.y) / (${rightComplex}.x * ${rightComplex}.x + ${rightComplex}.y * ${rightComplex}.y))`,
+                                `complexDiv(${leftComplex}, ${rightComplex})`,
                                 true
                             );
                         }
-                        return cacheExpression(`(${left.glsl} / ${right.glsl})`, false);
-                    case '**':
+                        return {
+                            glsl: `(${left.glsl} / ${right.glsl})`,
+                            isComplex: false
+                        };
+                    case '^':
                         if (left.isComplex) {
                             if (right.isComplex || !Number.isInteger(parseFloat(right.glsl))) {
                                 return handleComplexExponentiation(left, right);
@@ -90,7 +98,7 @@ export function translateToGLSL(node) {
                             };
                         }
                     default:
-                        throw new Error(`Unsupported operator "${node.operator}". Please use only supported operators (+, -, *, /, **).`);
+                        throw new Error(`Unsupported operator "${node.operator}". Please use only supported operators (+, -, *, /, ^).`);
                 }
             }
             case 'sqrt': {
@@ -144,6 +152,7 @@ export function translateToGLSL(node) {
                 };
             }
             case 'call': {
+                // Assuming 'call' nodes represent function calls with multiple arguments
                 const callArgs = node.args.map(arg => processNode(arg).glsl);
                 return {
                     glsl: `${node.name}(${callArgs.join(', ')})`,
@@ -159,50 +168,52 @@ export function translateToGLSL(node) {
     // Helper function to handle complex exponentiation
     function handleComplexExponentiation(base, exponent) {
         const isExponentComplex = exponent.isComplex;
-        const baseLog = `vec2(log(length(${base.glsl})), atan(${base.glsl}.y, ${base.glsl}.x))`;
+        const baseLog = `complexLog(${base.glsl})`; // Use helper function for log
 
         if (isExponentComplex) {
-            const mulExp = `vec2(${exponent.glsl}.x * ${baseLog}.x - ${exponent.glsl}.y * ${baseLog}.y, ${exponent.glsl}.x * ${baseLog}.y + ${exponent.glsl}.y * ${baseLog}.x)`;
-            return {
-                glsl: `complexExp(${mulExp})`,
-                isComplex: true
-            };
+            return cacheExpression(
+                `complexExp(complexMul(${exponent.glsl}, ${baseLog}))`,
+                true
+            );
         } else {
             const scalarExp = exponent.glsl;
-            const mulExp = `vec2(${scalarExp} * ${baseLog}.x, ${scalarExp} * ${baseLog}.y)`;
-            return {
-                glsl: `complexExp(${mulExp})`,
-                isComplex: true
-            };
+            return cacheExpression(
+                `complexExp(vec2(${scalarExp} * ${baseLog}.x, ${scalarExp} * ${baseLog}.y))`,
+                true
+            );
         }
     }
 
+    // Handle complex functions like sin, cos, etc.
     function handleComplexFunction(name, arg) {
         const argStr = arg.glsl;
         switch (name) {
             case 'sin':
                 return cacheExpression(
-                    `vec2(sin(${argStr}.x) * cosh(${argStr}.y), cos(${argStr}.x) * sinh(${argStr}.y))`,
+                    `complexSin(${argStr})`,
                     true
                 );
             case 'cos':
                 return cacheExpression(
-                    `vec2(cos(${argStr}.x) * cosh(${argStr}.y), -sin(${argStr}.x) * sinh(${argStr}.y))`,
+                    `complexCos(${argStr})`,
                     true
                 );
             case 'tan': {
-                const sinArg = handleComplexFunction('sin', arg).glsl;
-                const cosArg = handleComplexFunction('cos', arg).glsl;
-                return cacheExpression(`(${sinArg}) / (${cosArg})`, true);
+                const sinArg = `complexSin(${argStr})`;
+                const cosArg = `complexCos(${argStr})`;
+                return cacheExpression(
+                    `complexDiv(${sinArg}, ${cosArg})`,
+                    true
+                );
             }
             case 'exp':
                 return cacheExpression(
-                    `vec2(exp(${argStr}.x) * cos(${argStr}.y), exp(${argStr}.x) * sin(${argStr}.y))`,
+                    `complexExp(${argStr})`,
                     true
                 );
             case 'log':
                 return cacheExpression(
-                    `vec2(log(length(${argStr})), atan(${argStr}.y, ${argStr}.x))`,
+                    `complexLog(${argStr})`,
                     true
                 );
             case 'sqrt':
@@ -212,36 +223,40 @@ export function translateToGLSL(node) {
         }
     }
 
+    // Handle complex square root
     function handleComplexSqrt(arg) {
         return cacheExpression(
-            `vec2(sqrt((length(${arg.glsl}) + ${arg.glsl}.x) / 2.0), sign(${arg.glsl}.y) * sqrt((length(${arg.glsl}) - ${arg.glsl}.x) / 2.0))`,
+            `complexSqrt(${arg.glsl})`,
             true
         );
     }
 
+    // Handle integer exponentiation using repeated multiplication
     function handleIntegerExponentiation(base, n) {
         if (n === 0) {
             return { glsl: 'vec2(1.0, 0.0)', isComplex: true };
         } else if (n < 0) {
             const positivePower = handleIntegerExponentiation(base, -n).glsl;
             return {
-                glsl: `vec2(1.0, 0.0) / ${positivePower}`,
+                glsl: `complexDiv(vec2(1.0, 0.0), ${positivePower})`,
                 isComplex: true
             };
         } else {
             let result = base.glsl;
             for (let i = 1; i < n; i++) {
-                result = `vec2(${result}.x * ${base.glsl}.x - ${result}.y * ${base.glsl}.y, ${result}.x * ${base.glsl}.y + ${result}.y * ${base.glsl}.x)`;
+                result = `complexMul(${result}, ${base.glsl})`;
             }
             return { glsl: result, isComplex: true };
         }
     }
 
+    // Begin processing the AST
     const result = processNode(node);
 
     if (result.glsl.includes("undefined")) {
         throw new Error('Internal error: Undefined in generated GLSL code. Please check your expression for mistakes.');
     }
 
+    // Combine helper functions, temporary declarations, and the final assignment
     return tempDeclarations.join('\n') + `\nz = ${result.glsl};`;
 }

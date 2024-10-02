@@ -25,7 +25,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                 if (newValue >= variable.max || newValue <= variable.min) {
                     updateVariable({
                         step: -variable.step,
-                        value: Math.max(variable.min + 0.01, Math.min(newValue, variable.max - 0.01))
+                        value: Math.max(variable.min + Math.abs(variable.step), Math.min(newValue, variable.max - Math.abs(variable.step)))
                     });
                     newValue = Math.max(variable.min, Math.min(newValue, variable.max));
                     return; // Exit early since we've already updated the state

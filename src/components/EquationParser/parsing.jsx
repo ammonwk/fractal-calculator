@@ -27,7 +27,7 @@ export function parse(tokens) {
 
     function parseFactor() {
         let node = parseExponent();
-        while (index < tokens.length && (tokens[index] === '**')) {
+        while (index < tokens.length && (tokens[index] === '^')) {
             const operator = tokens[index++];
             const right = parseExponent();
             node = { type: 'binary', operator, left: node, right };
