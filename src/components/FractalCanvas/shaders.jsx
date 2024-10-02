@@ -168,6 +168,12 @@ vec2 complexLog(vec2 z) {
     return vec2(log(length(z)), atan(z.y, z.x));
 }
 
+// Raising a complex number to a complex power
+vec2 complexPow(vec2 a, vec2 b) {
+    // a^b = exp(b * log(a))
+    return complexExp(complexMul(b, complexLog(a)));
+}
+
 // Complex sine
 vec2 complexSin(vec2 z) {
     return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y));

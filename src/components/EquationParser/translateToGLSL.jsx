@@ -84,19 +84,24 @@ export function translateToGLSL(node) {
                             glsl: `(${left.glsl} / ${right.glsl})`,
                             isComplex: false
                         };
-                    case '^':
-                        if (left.isComplex) {
-                            if (right.isComplex || !Number.isInteger(parseFloat(right.glsl))) {
-                                return handleComplexExponentiation(left, right);
-                            } else {
-                                return handleIntegerExponentiation(left, parseInt(right.glsl, 10));
-                            }
+                    case '^': {
+                        const leftIsComplex = left.isComplex;
+                        const rightIsComplex = right.isComplex;
+                        const rightIsInteger = !rightIsComplex && Number.isInteger(parseFloat(right.glsl));
+
+                        if (leftIsComplex || rightIsComplex || !rightIsInteger) {
+                            // Promote real numbers to vec2 if necessary
+                            const base = leftIsComplex ? left.glsl : `vec2(${left.glsl}, 0.0)`;
+                            const exponent = rightIsComplex ? right.glsl : `vec2(${right.glsl}, 0.0)`;
+                            return cacheExpression(
+                                `complexPow(${base}, ${exponent})`,
+                                true
+                            );
                         } else {
-                            return {
-                                glsl: `pow(${left.glsl}, ${right.glsl})`,
-                                isComplex: false
-                            };
+                            // Handle integer exponentiation for real numbers
+                            return handleIntegerExponentiation(left, parseInt(right.glsl, 10));
                         }
+                    }
                     default:
                         throw new Error(`Unsupported operator "${node.operator}". Please use only supported operators (+, -, *, /, ^).`);
                 }
@@ -251,12 +256,14 @@ export function translateToGLSL(node) {
     }
 
     // Begin processing the AST
-    const result = processNode(node);
+    let result = processNode(node);
 
-    if (result.glsl.includes("undefined")) {
+    result = result.isComplex ? result.glsl : `vec2(${result.glsl}, 0.0)`;
+
+    if (result.includes("undefined")) {
         throw new Error('Internal error: Undefined in generated GLSL code. Please check your expression for mistakes.');
     }
 
     // Combine helper functions, temporary declarations, and the final assignment
-    return tempDeclarations.join('\n') + `\nz = ${result.glsl};`;
+    return tempDeclarations.join('\n') + `\nz = ${result};`;
 }
