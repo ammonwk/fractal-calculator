@@ -6,3 +6,5 @@ dbConfig.json
 /blob-report/
 /playwright/.cache/
 dist/
+scanned_dir.txt
+scan_dir.py

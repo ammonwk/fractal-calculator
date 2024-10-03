@@ -1,4 +1,6 @@
 # ./deployReact.sh -k "C:\Users\ammon\Documents\Robotics-Programming\BYU\cs260\keys\production.pem" -h rmplanner.click -s simon
+# ssh -i "C:\Users\ammon\Documents\Robotics-Programming\BYU\cs260\keys\production.pem" ubuntu@34.238.113.27
+# pm2 logs
 
 while getopts k:h:s: flag
 do
