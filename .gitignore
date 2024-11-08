@@ -1,6 +1,7 @@
 startup.code-workspace
 node_modules/
 dbConfig.json
+.env
 /test-results/
 /playwright-report/
 /blob-report/

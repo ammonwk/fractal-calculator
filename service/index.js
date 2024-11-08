@@ -5,6 +5,7 @@ const config = require('./dbConfig.json');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
+const crypto = require('crypto'); // Import crypto for nonce generation
 const { body, param, validationResult } = require('express-validator');
 
 const app = express();
@@ -13,14 +14,40 @@ app.use(compression({ level: 6 }));
 const port = process.argv.length > 2 ? process.argv[2] : 3000;
 
 // Security Middlewares
-app.use(helmet());
 app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+    // Generate a unique nonce for each request
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+
+    // Configure Helmet with the CSP including the nonce and trusted sources
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: [
+                    "'self'",
+                    'https://cdn.jsdelivr.net',
+                    'https://unpkg.com',
+                    `'nonce-${res.locals.nonce}'`
+                ],
+                styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'", 'https:'],
+                fontSrc: ["'self'", 'https:', 'data:'],
+                objectSrc: ["'none'"],
+                upgradeInsecureRequests: [],
+            },
+        },
+    })(req, res, next);
+});
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
+    trustProxy: true, // Enable trustProxy within rateLimit
 });
 
 app.use(limiter);
@@ -39,7 +66,7 @@ app.use(express.static('public'));
 let db;
 
 // Connect to MongoDB
-const mongoUri = `mongodb+srv://${config.userName}:${config.password}@${config.hostname}`;
+const mongoUri = `mongodb+srv://${config.dbUsername}:${config.dbPassword}@${config.dbHostname}`;
 const client = new MongoClient(mongoUri);
 
 // Connect to the database
