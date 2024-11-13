@@ -206,7 +206,7 @@ input[type="number"] {
 .info-button-container {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  right: 68px;
   z-index: 1000;
 }
 

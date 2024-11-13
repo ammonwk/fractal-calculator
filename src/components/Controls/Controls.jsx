@@ -72,20 +72,6 @@ const Select = ({ label, value, onChange, options, tooltip, onMouseEnter, onMous
     </div>
 );
 
-const ActionButton = ({ onClick, children, variant = 'primary', disabled = false }) => (
-    <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`w-full px-4 py-2 rounded-lg font-medium transition-all
-                   ${variant === 'primary'
-                ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
-                : 'bg-gray-700 hover:bg-gray-600 active:bg-gray-800'}
-                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
-        {children}
-    </button>
-);
-
 function Controls({
     latexInput,
     setLatexInput,
@@ -95,7 +81,6 @@ function Controls({
     cutoff,
     onCutoffChange,
     onColorSchemeChange,
-    onResetView,
     variables,
     onVariableChange,
     onVariableDelete,
@@ -108,9 +93,6 @@ function Controls({
     setGraphicsQuality,
     isJuliaSet,
     handleToggleChange,
-    handleSaveFractal,
-    setShareModalVisible,
-    setShareUrl
 }) {
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -238,20 +220,6 @@ function Controls({
 
     const handleMouseLeave = () => {
         setTooltip({ ...tooltip, visible: false });
-    };
-
-    const handleShareClick = async (event) => {
-        const url = await handleSaveFractal();
-        if (url) {
-            setShareUrl(window.location.origin + url);
-
-            const { clientX, clientY } = event.touches?.[0] || event;
-            setShareModalVisible({
-                visible: true,
-                x: clientX + 10,
-                y: clientY - 10
-            });
-        }
     };
 
     // Clean up debounced functions
@@ -485,22 +453,6 @@ function Controls({
                                     />
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="space-y-2 pt-4">
-                            <ActionButton
-                                onClick={handleShareClick}
-                                disabled={!!error}
-                            >
-                                Share Fractal
-                            </ActionButton>
-                            <ActionButton
-                                onClick={onResetView}
-                                variant="secondary"
-                            >
-                                Reset View
-                            </ActionButton>
                         </div>
                     </div>
                 </div>

@@ -42,7 +42,10 @@ function FractalCanvas({
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        const gl = canvas.getContext('webgl2', { antialias: false });
+        const gl = canvas.getContext('webgl2', { 
+            antialias: false, 
+            preserveDrawingBuffer: true 
+        });
         if (!gl) {
             console.error('WebGL2 is not supported in your browser.');
             return;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FractalCanvas from './FractalCanvas/FractalCanvas';
 import Controls from './Controls/Controls';
@@ -6,6 +6,7 @@ import TopBar from './Controls/TopBar';
 import InfoButton from './Controls/InfoButton';
 import { saveFractalState } from './services/FractalService';
 import ShareModal from './Controls/ShareModal';
+import RightSideBar from './Controls/RightSideBar';
 
 function FractalEditor({
     initialInput,
@@ -36,6 +37,60 @@ function FractalEditor({
     const [shareUrl, setShareUrl] = useState('');
     const [graphicsQuality, setGraphicsQuality] = useState(70);
     const [juliaParam, setJuliaParam] = useState(initialJuliaParam);
+    const [continuousZoom, setContinuousZoom] = useState(null);
+    const [zoomRate, setZoomRate] = useState(1.02);
+    const mousePositionRef = useRef({ x: 0, y: 0 });
+    const sidebarRef = useRef(null);
+
+    useEffect(() => {
+        const handleCanvasClick = (e) => {
+            if (e.target.closest('.canvas-container') && !isOverSidebar()) {
+                setContinuousZoom(null);
+                setZoomRate(1.02);
+            }
+        };
+
+        window.addEventListener('click', handleCanvasClick);
+        return () => window.removeEventListener('click', handleCanvasClick);
+    }, []);
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            mousePositionRef.current = { x: e.clientX, y: e.clientY };  // Update ref directly
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    const isOverSidebar = () => {
+        if (!sidebarRef.current) return false;
+        const rect = sidebarRef.current.getBoundingClientRect();
+        return mousePositionRef.current.x >= rect.left;  // Use ref instead of state
+    };
+
+    const handleZoom = (factor) => {
+        if (isOverSidebar()) {
+            setZoom(prevZoom => prevZoom * factor);
+        } else {
+            const canvas = document.querySelector('.canvas-container');
+            const canvasRect = canvas.getBoundingClientRect();
+            const mouseX = (mousePositionRef.current.x - canvasRect.left) / canvasRect.width;  // Use ref
+            const mouseY = (mousePositionRef.current.y - canvasRect.top) / canvasRect.height;  // Use ref
+
+            setZoom(prevZoom => {
+                const newZoom = prevZoom * factor;
+                const aspectRatio = canvasRect.width / canvasRect.height;
+
+                setOffset(prevOffset => ({
+                    x: prevOffset.x - ((mouseX - 0.5) * aspectRatio * 2.0) * (1 / prevZoom - 1 / newZoom),
+                    y: prevOffset.y + ((mouseY - 0.5) * 2.0) * (1 / prevZoom - 1 / newZoom)
+                }));
+
+                return newZoom;
+            });
+        }
+    };
 
     const navigate = useNavigate();
 
@@ -129,11 +184,35 @@ function FractalEditor({
                 setShareModalVisible={setShareModalVisible} // Pass down the setShareModalVisible
                 setShareUrl={setShareUrl} // Pass down the setShareUrl
             />
+            <RightSideBar
+                onShare={async (event) => {
+                    const url = await handleSaveFractal();
+                    if (url) {
+                        setShareUrl(window.location.origin + url);
+                        // Position modal relative to the share button
+                        setShareModalVisible({
+                            visible: true,
+                            x: window.innerWidth - 300,
+                            y: 60
+                        });
+                    }
+                }}
+                onResetView={() => {
+                    setZoom(0.9);
+                    setOffset({ x: 0.7, y: -0.12 });
+                }}
+                onZoom={handleZoom}
+                sidebarRef={sidebarRef}
+                continuousZoom={continuousZoom}
+                setContinuousZoom={setContinuousZoom}
+                zoomRate={zoomRate}
+                setZoomRate={setZoomRate}
+            />
             {shareModalVisible.visible && (
                 <ShareModal
                     shareUrl={shareUrl}
                     onClose={() => setShareModalVisible({ visible: false, x: 0, y: 0 })}
-                    initialPosition={{ x: shareModalVisible.x, y: shareModalVisible.y }} // Pass the initial position
+                    initialPosition={{ x: shareModalVisible.x, y: shareModalVisible.y }}
                 />
             )}
             <InfoButton />

@@ -7,6 +7,12 @@ const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const crypto = require('crypto'); // Import crypto for nonce generation
 const { body, param, validationResult } = require('express-validator');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleAIFileManager } = require('@google/generative-ai/server');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const NodeCache = require('node-cache');
 
 const app = express();
 app.use(compression({ level: 6 }));
@@ -150,6 +156,75 @@ app.get(
         }
     }
 );
+
+const nameRequestCache = new NodeCache();
+
+const fractalNameRateLimiter = (req, res, next) => {
+    const ip = req.ip;
+    const minute = Math.floor(Date.now() / 60000); // Get current minute
+    const key = `${ip}-${minute}`;
+
+    const requestCount = nameRequestCache.get(key) || 0;
+
+    if (requestCount >= 6) {
+        return res.json({ name: "Fractal" });
+    }
+
+    nameRequestCache.set(key, requestCount + 1, 60); // Expire after 60 seconds
+    next();
+};
+
+app.post('/api/getFractalName', fractalNameRateLimiter, async (req, res) => {
+    let tempFilePath = null;
+
+    try {
+        const { imageData } = req.body;
+
+        // Create temp file
+        tempFilePath = path.join(os.tmpdir(), `fractal-${Date.now()}.png`);
+
+        // Convert base64 to buffer and save to temp file
+        const buffer = Buffer.from(imageData.split(',')[1], 'base64');
+        fs.writeFileSync(tempFilePath, buffer);
+
+        const fileManager = new GoogleAIFileManager(config.geminiKey);
+
+        // Upload the temp file
+        const uploadResult = await fileManager.uploadFile(tempFilePath, {
+            mimeType: "image/png",
+            displayName: "fractal_image",
+        });
+
+        const genAI = new GoogleGenerativeAI(config.geminiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const result = await model.generateContent([
+            "Give this fractal a one to three word name roughly describing it, probably ending in Fractal or something of the sort. Try to make it creative but memorable and elegant, and avoid the word 'rainbow.' Reply with just that name, nothing else.",
+            {
+                fileData: {
+                    fileUri: uploadResult.file.uri,
+                    mimeType: uploadResult.file.mimeType,
+                },
+            },
+        ]);
+
+        const name = result.response.text().trim().replace(/\.$/, '');
+
+        res.json({ name });
+    } catch (error) {
+        console.error('Error getting fractal name:', error);
+        res.json({ name: "Fractal" }); // Return "Fractal" on error
+    } finally {
+        // Clean up temp file
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+            try {
+                fs.unlinkSync(tempFilePath);
+            } catch (err) {
+                console.error('Error cleaning up temp file:', err);
+            }
+        }
+    }
+});
 
 // Return the application's default page if the path is unknown
 app.use((_req, res) => {
