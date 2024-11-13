@@ -2,18 +2,70 @@ import React from 'react';
 
 const ToggleSwitch = ({ checked, onChange, leftLabel, rightLabel }) => {
     return (
-        <div className="flex items-center justify-between mt-4">
-            <span className="text-sm font-semibold text-white">{leftLabel}</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={checked}
-                    onChange={onChange}
-                />
-                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-            </label>
-            <span className="text-sm font-semibold text-white">{rightLabel}</span>
+        <div className="relative w-full flex mt-4">
+            <div className="
+                relative
+                bg-gray-600
+                rounded-lg
+                p-1
+                w-full
+                h-10
+                flex
+                items-center
+                cursor-pointer
+            ">
+                {/* Sliding highlight */}
+                <div className={`
+                    absolute
+                    top-1
+                    ${checked ? 'left-[50%]' : 'left-1'}
+                    w-[calc(50%-4px)]
+                    h-[calc(100%-8px)]
+                    bg-blue-500
+                    rounded-md
+                    transition-all
+                    duration-300
+                    ease-in-out
+                    shadow-md
+                `}></div>
+
+                {/* Labels */}
+                <div className="
+                    relative
+                    flex
+                    w-full
+                    text-sm
+                    font-medium
+                    select-none
+                ">
+                    <span
+                        onClick={() => onChange({ target: { checked: false } })}
+                        className={`
+                            flex-1
+                            text-center
+                            z-10
+                            transition-colors
+                            duration-300
+                            ${checked ? 'text-gray-300' : 'text-white'}
+                        `}
+                    >
+                        {leftLabel}
+                    </span>
+                    <span
+                        onClick={() => onChange({ target: { checked: true } })}
+                        className={`
+                            flex-1
+                            text-center
+                            z-10
+                            transition-colors
+                            duration-300
+                            ${checked ? 'text-white' : 'text-gray-300'}
+                        `}
+                    >
+                        {rightLabel}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 };

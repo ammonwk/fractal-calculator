@@ -9,6 +9,83 @@ import Tooltip from './Tooltip';
 
 addMathquillStyles();
 
+// Base Components
+const SectionHeader = ({ children, tooltip, onMouseEnter, onMouseLeave }) => (
+    <div className="flex items-center space-x-2 mb-2">
+        <h3 className="text-sm font-medium text-gray-200">{children}</h3>
+        {tooltip && (
+            <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full 
+                         bg-gray-600 text-xs text-gray-200 cursor-help
+                         hover:bg-gray-500 transition-colors"
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
+                role="tooltip"
+            >
+                i
+            </span>
+        )}
+    </div>
+);
+
+const Slider = ({ label, value, onChange, min, max, step, tooltip, onMouseEnter, onMouseLeave, displayValue }) => (
+    <div className="space-y-2">
+        <div className="flex justify-between items-center">
+            <SectionHeader tooltip={tooltip} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+                {label}
+            </SectionHeader>
+            <span className="text-sm text-gray-400">{displayValue || value}</span>
+        </div>
+        <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={onChange}
+            className="w-full h-2 bg-gray-700 rounded-lg cursor-pointer 
+                     accent-blue-500 focus:outline-none focus:ring-2 
+                     focus:ring-blue-500/50"
+            aria-label={label}
+        />
+    </div>
+);
+
+const Select = ({ label, value, onChange, options, tooltip, onMouseEnter, onMouseLeave }) => (
+    <div className="space-y-2">
+        <SectionHeader tooltip={tooltip} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+            {label}
+        </SectionHeader>
+        <select
+            value={value}
+            onChange={onChange}
+            className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 
+                     rounded-lg appearance-none cursor-pointer
+                     focus:border-blue-500 focus:outline-none
+                     transition-colors"
+            aria-label={label}
+        >
+            {options.map(option => (
+                <option key={option} value={option}>{option}</option>
+            ))}
+        </select>
+    </div>
+);
+
+const ActionButton = ({ onClick, children, variant = 'primary', disabled = false }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`w-full px-4 py-2 rounded-lg font-medium transition-all
+                   ${variant === 'primary'
+                ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
+                : 'bg-gray-700 hover:bg-gray-600 active:bg-gray-800'}
+                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+        {children}
+    </button>
+);
+
 function Controls({
     latexInput,
     setLatexInput,
@@ -41,93 +118,121 @@ function Controls({
     const [isExpanded, setIsExpanded] = useState(false);
     const timeoutRef = useRef(null);
     const isInitialRender = useRef(true);
+    const [tooltip, setTooltip] = useState({
+        visible: false,
+        content: '',
+        position: { top: 0, left: 0 }
+    });
 
-    // State for managing tooltip
-    const [tooltip, setTooltip] = useState({ visible: false, content: '', position: { top: 0, left: 0 } });
-
+    // Effect for MathQuill styling
     useEffect(() => {
         const style = document.createElement("style");
         style.innerHTML = `
-      .mq-editable-field,
-      .mq-editable-field * {
-        color: white !important;
-        caret-color: white !important;
-      }
-      .mq-cursor {
-        border-color: white !important;
-      }
-    `;
+            .mq-editable-field,
+            .mq-editable-field * {
+                color: white !important;
+                caret-color: white !important;
+            }
+            .mq-cursor {
+                border-color: white !important;
+            }
+        `;
         document.head.appendChild(style);
-        return () => {
-            document.head.removeChild(style);
-        };
+        return () => document.head.removeChild(style);
     }, []);
 
+    // Input handling
     const handleInputChange = (mathField) => {
         const inputEquation = mathField.latex();
         setLatexInput(inputEquation);
         clearTimeout(timeoutRef.current);
 
         try {
-            console.log('Input equation:', inputEquation);
             const tokens = tokenize(inputEquation, Object.keys(variables));
-            console.log('Tokens:', tokens);
-            const replacedTokens = tokens.map(token => (variables.hasOwnProperty(token) ? variables[token].value : token));
+            const replacedTokens = tokens.map(token =>
+                (variables.hasOwnProperty(token) ? variables[token].value : token)
+            );
             const syntaxTree = parse(replacedTokens);
             const glslCode = translateToGLSL(syntaxTree);
-            console.log('GLSL code:', glslCode);
             onEquationChange(glslCode);
             setError(null);
         } catch (error) {
             if (error.message.includes("Invalid variable")) {
                 const variableName = error.message.match(/'([^']+)'/)[1];
-                setError({ message: `No variable "${variableName}" has been declared.`, variableName });
+                setError({
+                    message: `No variable "${variableName}" has been declared.`,
+                    variableName
+                });
             } else {
                 setError({ message: error.message });
             }
         }
     };
 
+    // Effect for variable changes
     useEffect(() => {
-        if (!isInitialRender.current) { // Check if it's not the first render
-            handleInputChange({ latex: () => latexInput });
-        } else {
-            isInitialRender.current = false; // Set to false after the first render
+        try {
+            if (!isInitialRender.current) {
+                handleInputChange({ latex: () => latexInput });
+            } else {
+                isInitialRender.current = false;
+            }
+        } catch (error) {
+            console.error('Error processing equation:', error);
+            setError({ message: 'An unexpected error occurred while processing the equation.' });
         }
         return () => clearTimeout(timeoutRef.current);
     }, [variables]);
 
-    const handleIterationsChange = (event) => onIterationsChange(parseInt(event.target.value, 10));
-    const handleCutoffChange = (event) => onCutoffChange(parseFloat(event.target.value));
+    // Event handlers
+    const handleIterationsChange = (event) => {
+        const value = parseInt(event.target.value, 10);
+        if (!isNaN(value) && value > 0) {
+            onIterationsChange(value);
+        }
+    };
+
+    const handleCutoffChange = (event) => {
+        const value = parseFloat(event.target.value);
+        if (!isNaN(value) && value >= 0) {
+            onCutoffChange(value);
+        }
+    };
+
     const handleColorSchemeChange = (event) => {
         const newColorScheme = event.target.value;
         setColorScheme(newColorScheme);
         onColorSchemeChange(newColorScheme);
     };
+
     const handleCreateVariable = (variableName) => {
         onNewVariable(variableName);
         setError(null);
     };
-    const handleSharpnessChange = (event) => setFxaaIntensity(parseFloat(event.target.value));
 
-    const handlePixelSizeChange = (event) => setPixelSize(parseInt(event.target.value, 10));
-
-    const getGraphicsQualityText = () => {
-        if (graphicsQuality > 75) return 'High Definition';
-        if (graphicsQuality > 50) return 'Balanced';
-        if (graphicsQuality > 25) return 'Performance';
-        return 'Fast Rendering';
+    const handlePixelSizeChange = (event) => {
+        const value = parseInt(event.target.value, 10);
+        if (!isNaN(value) && [1, 2, 4, 8, 16].includes(value)) {
+            setPixelSize(value);
+        }
     };
 
+    const getGraphicsQualityText = () => {
+        if (graphicsQuality > 75) return 'HD';
+        if (graphicsQuality > 50) return 'Balanced';
+        if (graphicsQuality > 25) return 'Performance';
+        return 'Fast';
+    };
+
+    // UI state handlers
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
-    // Handle mouse hover for tooltip
     const handleMouseEnter = (content, event) => {
         const { clientX, clientY } = event;
         setTooltip({
             visible: true,
             content,
-            position: { top: clientY, left: clientX + 10 } // Adjust position slightly to the right
+            position: { top: clientY, left: clientX + 10 }
         });
     };
 
@@ -136,192 +241,277 @@ function Controls({
     };
 
     const handleShareClick = async (event) => {
-        const url = await handleSaveFractal(); // Call the modified handleSaveFractal
+        const url = await handleSaveFractal();
         if (url) {
-            setShareUrl(window.location.origin + url); // Construct the full URL
+            setShareUrl(window.location.origin + url);
 
-            let clientX, clientY;
-
-            // Check if the event is a touch event
-            if (event.type === 'touchstart' || event.type === 'touchend') {
-                clientX = event.touches[0].clientX; // Get the x-coordinate of the first touch point
-                clientY = event.touches[0].clientY; // Get the y-coordinate of the first touch point
-            } else {
-                // Mouse event handling
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-
-            // Set the modal visibility and position
-            setShareModalVisible({ visible: true, x: clientX + 10, y: clientY - 10 });
+            const { clientX, clientY } = event.touches?.[0] || event;
+            setShareModalVisible({
+                visible: true,
+                x: clientX + 10,
+                y: clientY - 10
+            });
         }
     };
 
+    // Clean up debounced functions
+    useEffect(() => {
+        return () => {
+            debouncedGraphicsQualityChange.cancel();
+            debouncedSharpnessChange.cancel();
+        };
+    }, []);
+
     return (
         <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>
-            <div className={`absolute w-64 flex-none transition-all duration-300 ease-in-out ${isCollapsed ? '-translate-x-48' : 'translate-x-0'} bg-gray-800 text-white shadow-md h-full flex flex-col overflow-hidden`}>
-                <button className={`p-2 text-sm text-white bg-gray-700 hover:bg-gray-600 rounded-tr-md rounded-br-md transition pt-20 ${isCollapsed ? 'text-right pr-7' : 'text-center'}`} onClick={() => setIsCollapsed(!isCollapsed)}>{isCollapsed ? '>' : '< < <'}</button>
-                <div className={`p-4 space-y-4 overflow-y-auto transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                    <label htmlFor="equation" className="block text-sm font-semibold">
-                        Fractal Equation:
-                        <span
-                            className="tooltip"
-                            onMouseEnter={(e) => handleMouseEnter("Enter the equation defining the fractal. You can use variables, mathematical functions, and constants.", e)}
-                            onMouseLeave={handleMouseLeave}
-                        >
-                            <span className="tooltip-icon">i</span>
-                        </span>
-                    </label>
-                    <MathQuill latex={latexInput} onChange={handleInputChange} className="mathquill-input p-2 w-full bg-gray-700 rounded text-white" />
-                    {error && (
-                        <div className="text-red-400 mt-2">
-                            {error.message}
-                            {error.variableName && (
-                                <button className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-400" onClick={() => handleCreateVariable(error.variableName)}>Create Variable</button>
-                            )}
+            <div className={`fixed w-64 flex-none transition-all duration-300 ease-in-out 
+               ${isCollapsed ? '-translate-x-64' : 'translate-x-0'} 
+               bg-gray-800 backdrop-blur-sm text-white shadow-lg h-full 
+               flex flex-col border-r border-gray-700`}>
+                <button
+                    className={`absolute right-[-2rem] top-20 mr-8 p-2 text-sm text-white 
+                                bg-gray-700 hover:bg-gray-600 transition-all
+               ${isCollapsed
+                            ? 'w-8 translate-x-8 rounded-r-md'
+                            : 'w-8 rounded-l-md'} right-0`}
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    aria-label={isCollapsed ? "Expand controls" : "Collapse controls"}
+                    aria-expanded={!isCollapsed}
+                >
+                    {isCollapsed ? '>' : '<'}
+                </button>
+                <div className="h-full overflow-x-hidden">
+
+                    {/* Main Content */}
+                    <div className={`p-4 pt-28 space-y-4 overflow-y-auto transition-opacity duration-300 
+                                                        ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+                        {/* Equation Input Section */}
+                        <div className="space-y-2">
+                            <SectionHeader
+                                tooltip="Enter the equation defining the fractal"
+                                onMouseEnter={(e) => handleMouseEnter("Enter the equation defining the fractal. You can use variables, mathematical functions, and constants.", e)}
+                                onMouseLeave={handleMouseLeave}
+                            >
+                                Fractal Equation
+                            </SectionHeader>
+                            <div className="relative">
+                                <MathQuill
+                                    latex={latexInput}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-gray-700/50 backdrop-blur-sm 
+                                            border border-gray-600 rounded-lg p-3
+                                            focus-within:border-blue-500 transition-colors"
+                                />
+                                {error && (
+                                    <div className="mt-2 p-3 bg-red-500/10 border border-red-500/20 
+                                                rounded-lg text-red-400 flex items-center justify-between">
+                                        <span>{error.message}</span>
+                                        {error.variableName && (
+                                            <button
+                                                className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 
+                                                        rounded-md transition-colors"
+                                                onClick={() => handleCreateVariable(error.variableName)}
+                                            >
+                                                Create Variable
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    )}
-                    <div className="mt-4">
-                        <label className="text-sm font-semibold flex items-center">
-                            Fractal Type:
-                            <span
-                                className="tooltip"
+
+                        {/* Fractal Type Toggle */}
+                        <div className="space-y-2">
+                            <SectionHeader
+                                tooltip="Switch between Base Fractal and Julia Set"
                                 onMouseEnter={(e) => handleMouseEnter("Switch between Base Fractal and Julia Set.", e)}
                                 onMouseLeave={handleMouseLeave}
                             >
-                                <span className="tooltip-icon">i</span>
-                            </span>
-                        </label>
-                        <ToggleSwitch
-                            checked={isJuliaSet}
-                            onChange={handleToggleChange}
-                            leftLabel="Base Fractal"
-                            rightLabel="Julia Set"
+                                Fractal Type
+                            </SectionHeader>
+                            <ToggleSwitch
+                                checked={isJuliaSet}
+                                onChange={handleToggleChange}
+                                leftLabel="Base Fractal"
+                                rightLabel="Julia Set"
+                            />
+                        </div>
+
+                        {/* Variables Section */}
+                        {Object.keys(variables).length > 0 && (
+                            <div className="space-y-2">
+                                <SectionHeader>Variables</SectionHeader>
+                                <div className="space-y-3">
+                                    {Object.keys(variables).map((variableName) => (
+                                        <VariableControl
+                                            key={variableName}
+                                            name={variableName}
+                                            variable={variables[variableName]}
+                                            onVariableChange={onVariableChange}
+                                            onVariableDelete={onVariableDelete}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Color Scheme Select */}
+                        <Select
+                            label="Color Scheme"
+                            value={colorScheme}
+                            onChange={handleColorSchemeChange}
+                            options={[
+                                'Rainbow',
+                                'Snowflake',
+                                'Watercolors',
+                                'Twinkling Stars',
+                                'Psychedelics',
+                                'Fire and Embers',
+                                'Ocean Waves',
+                                'Aurora Borealis',
+                                'The Matrix'
+                            ]}
+                            tooltip="Select the color scheme for the fractal"
+                            onMouseEnter={(e) => handleMouseEnter("Select the color scheme used to display the fractal.", e)}
+                            onMouseLeave={handleMouseLeave}
                         />
-                    </div>
-                    {Object.keys(variables).map((variableName) => (
-                        <VariableControl key={variableName} name={variableName} variable={variables[variableName]} onVariableChange={onVariableChange} onVariableDelete={onVariableDelete} />
-                    ))}
-                    <div className="mt-4">
-                        <label htmlFor="color-scheme" className="text-sm font-semibold">
-                            Color Scheme:
-                            <span
-                                className="tooltip"
-                                onMouseEnter={(e) => handleMouseEnter("Select the color scheme used to display the fractal.", e)}
-                                onMouseLeave={handleMouseLeave}
-                            >
-                                <span className="tooltip-icon">i</span>
-                            </span>
-                        </label>
-                        <select id="color-scheme" value={colorScheme} onChange={handleColorSchemeChange} className="w-full mt-1 p-2 bg-gray-700 rounded text-white">
-                            <option>Rainbow</option>
-                            <option>Snowflake</option>
-                            <option>Watercolors</option>
-                            <option>Twinkling Stars</option>
-                            <option>Psychedelics</option>
-                            <option>Fire and Embers</option>
-                            <option>Ocean Waves</option>
-                            <option>Aurora Borealis</option>
-                            <option>The Matrix</option>
-                        </select>
-                    </div>
-                    <div className="mt-4 flex items-center">
-                        <label htmlFor="graphics-quality" className="text-sm font-semibold">
-                            Graphics: {getGraphicsQualityText()}
-                            <span
-                                className="tooltip"
+
+                        {/* Graphics Quality Slider */}
+                        <div className="space-y-2">
+                            <SectionHeader
+                                tooltip="Adjust the graphics quality"
                                 onMouseEnter={(e) => handleMouseEnter("Adjust the graphics quality. Higher settings provide better visuals but may reduce performance.", e)}
                                 onMouseLeave={handleMouseLeave}
                             >
-                                <span className="tooltip-icon">i</span>
-                            </span>
-                        </label>
-                    </div>
-                    <input
-                        id="graphics-quality"
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={graphicsQuality}
-                        onChange={(event) => setGraphicsQuality(parseInt(event.target.value, 10))}
-                        className="graphics-quality-slider w-full mt-1"
-                    />
-
-                    {/* Advanced Options Toggle */}
-                    <div className="mt-2 flex items-center">
-                        <span className="text-sm font-semibold">Advanced Options</span>
-                        <button onClick={toggleExpand} className="dropdown-button-small">{isExpanded ? '▲' : '▼'}</button>
-                    </div>
-
-                    {/* Dropdown Content */}
-                    <div className={`dropdown-content ${isExpanded ? 'dropdown-content-expanded' : ''}`}>
-                        <div className="mt-4">
-                            <label htmlFor="iterations" className="text-sm font-semibold flex items-center">
-                                Iterations
-                                <span
-                                    className="tooltip"
-                                    onMouseEnter={(e) => handleMouseEnter("Controls the number of iterations for the fractal calculation. Higher values produce more detail but can be slower to compute.", e)}
-                                    onMouseLeave={handleMouseLeave}
-                                >
-                                    <span className="tooltip-icon">i</span>
-                                </span>
-                            </label>
-                            <input id="iterations" type="number" min="1" value={iterations} onChange={handleIterationsChange} className="w-full mt-1 p-2 bg-gray-700 rounded text-white" />
+                                Graphics Quality: {getGraphicsQualityText()}
+                            </SectionHeader>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={graphicsQuality}
+                                onChange={(event) => setGraphicsQuality(parseInt(event.target.value, 10))} // Remove debouncing
+                                className="w-full h-2 bg-gray-700 rounded-lg cursor-pointer 
+                                         accent-blue-500 graphics-quality-slider" // Add back the original class
+                                aria-label="Graphics quality"
+                            />
                         </div>
-                        <div className="mt-4">
-                            <label htmlFor="pixel-size" className="text-sm font-semibold">
-                                Pixel Size:
-                                <span
-                                    className="tooltip"
+
+                        {/* Advanced Options */}
+                        <div className="border-t border-gray-700 pt-4">
+                            <button
+                                onClick={toggleExpand}
+                                className="flex items-center justify-between w-full text-sm font-medium"
+                                aria-expanded={isExpanded}
+                                aria-controls="advanced-options"
+                            >
+                                <span>Advanced Options</span>
+                                <span className={`transform transition-transform duration-200 
+                                            ${isExpanded ? 'rotate-180' : ''}`}>
+                                    ▼
+                                </span>
+                            </button>
+
+                            <div
+                                id="advanced-options"
+                                className={`space-y-4 overflow-hidden transition-all duration-300 
+                                        ${isExpanded ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}
+                                aria-hidden={!isExpanded}
+                            >
+                                {/* Iterations Input */}
+                                <div className="space-y-2">
+                                    <SectionHeader
+                                        tooltip="Control iteration count"
+                                        onMouseEnter={(e) => handleMouseEnter("Controls the number of iterations for the fractal calculation. Higher values produce more detail but can be slower to compute.", e)}
+                                        onMouseLeave={handleMouseLeave}
+                                    >
+                                        Iterations
+                                    </SectionHeader>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="1000"
+                                        value={iterations}
+                                        onChange={handleIterationsChange}
+                                        className="w-full p-2 bg-gray-700/50 border border-gray-600 
+                                                    rounded-lg text-white focus:border-blue-500 
+                                                    focus:outline-none transition-colors"
+                                    />
+                                </div>
+
+                                {/* Pixel Size Select */}
+                                <Select
+                                    label="Pixel Size"
+                                    value={pixelSize}
+                                    onChange={handlePixelSizeChange}
+                                    options={[1, 2, 4, 8, 16]}
+                                    tooltip="Select rendering pixel size"
                                     onMouseEnter={(e) => handleMouseEnter("Select the size of pixels for rendering. Larger sizes improve performance but reduce detail.", e)}
                                     onMouseLeave={handleMouseLeave}
-                                >
-                                    <span className="tooltip-icon">i</span>
-                                </span>
-                            </label>
-                            <select id="pixel-size" value={pixelSize} onChange={handlePixelSizeChange} className="w-full mt-1 p-2 bg-gray-700 rounded text-white">
-                                <option value="1">1x1</option>
-                                <option value="2">2x2</option>
-                                <option value="4">4x4</option>
-                                <option value="8">8x8</option>
-                                <option value="16">16x16</option>
-                            </select>
-                        </div>
-                        <div className="mt-4">
-                            <label htmlFor="sharpness" className="text-sm font-semibold">
-                                Sharpness:
-                                <span
-                                    className="tooltip"
+                                />
+
+                                {/* Sharpness Slider */}
+                                <Slider
+                                    label="Sharpness"
+                                    value={fxaaIntensity}
+                                    onChange={(e) => setFxaaIntensity(parseFloat(e.target.value))}
+                                    min={0}
+                                    max={2}
+                                    step={0.1}
+                                    tooltip="Adjust anti-aliasing"
                                     onMouseEnter={(e) => handleMouseEnter("Adjusts the level of anti-aliasing applied to the fractal. Higher values increase sharpness but may reduce performance.", e)}
                                     onMouseLeave={handleMouseLeave}
-                                >
-                                    <span className="tooltip-icon">i</span>
-                                </span>
-                            </label>
-                            <input id="sharpness" type="range" min="0" max="2" step="0.1" value={fxaaIntensity} onChange={handleSharpnessChange} className="w-full mt-1" />
+                                    displayValue={`${Math.round(75 + (fxaaIntensity / 2) * 25)}%`}
+                                />
+
+                                {/* Cutoff Value Input */}
+                                <div className="space-y-2">
+                                    <SectionHeader
+                                        tooltip="Set escape radius"
+                                        onMouseEnter={(e) => handleMouseEnter("Sets the escape radius or threshold for the fractal calculation. Points beyond this value are considered outside the set.", e)}
+                                        onMouseLeave={handleMouseLeave}
+                                    >
+                                        Cut-off Value
+                                    </SectionHeader>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={cutoff}
+                                        onChange={handleCutoffChange}
+                                        className="w-full p-2 bg-gray-700/50 border border-gray-600 
+                                                    rounded-lg text-white focus:border-blue-500 
+                                                    focus:outline-none transition-colors"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="mt-4">
-                            <label htmlFor="cutoff" className="text-sm font-semibold flex items-center">
-                                Cut-off Value
-                                <span
-                                    className="tooltip"
-                                    onMouseEnter={(e) => handleMouseEnter("Sets the escape radius or threshold for the fractal calculation. Points beyond this value are considered outside the set.", e)}
-                                    onMouseLeave={handleMouseLeave}
-                                >
-                                    <span className="tooltip-icon">i</span>
-                                </span>
-                            </label>
-                            <input id="cutoff" type="number" min="0" step="0.1" value={cutoff} onChange={handleCutoffChange} className="w-full mt-1 p-2 bg-gray-700 rounded text-white" />
+
+                        {/* Action Buttons */}
+                        <div className="space-y-2 pt-4">
+                            <ActionButton
+                                onClick={handleShareClick}
+                                disabled={!!error}
+                            >
+                                Share Fractal
+                            </ActionButton>
+                            <ActionButton
+                                onClick={onResetView}
+                                variant="secondary"
+                            >
+                                Reset View
+                            </ActionButton>
                         </div>
                     </div>
-
-                    <button onClick={handleShareClick} className="mt-4 p-2 bg-blue-500 rounded text-white hover:bg-blue-400">Share Fractal</button>
-
-                    <button onClick={onResetView} className="mt-4 p-2 bg-blue-500 rounded text-white hover:bg-blue-400">Return to Default View</button>
                 </div>
             </div>
-            {/* Render Tooltip Component */}
-            <Tooltip content={tooltip.content} position={tooltip.position} visible={tooltip.visible} />
+
+            {/* Tooltip */}
+            <Tooltip
+                content={tooltip.content}
+                position={tooltip.position}
+                visible={tooltip.visible}
+            />
         </div>
     );
 }
