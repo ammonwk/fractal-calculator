@@ -70,8 +70,12 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
 
     // Handle value change for variable.value
     const handleValueChange = (event) => {
-        const newValue = parseFloat(event.target.value);
-        updateVariable({ value: newValue });
+        const rawValue = event.target.value;
+        // Allow empty string, minus sign, decimal point, and numbers
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
+            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+            updateVariable({ value: newValue });
+        }
     };
 
     const handleDelete = () => {
@@ -80,15 +84,27 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
 
     // Handle min, max, and step changes
     const handleMinChange = (event) => {
-        updateVariable({ min: parseFloat(event.target.value) });
+        const rawValue = event.target.value;
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
+            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+            updateVariable({ min: newValue });
+        }
     };
 
     const handleMaxChange = (event) => {
-        updateVariable({ max: parseFloat(event.target.value) });
+        const rawValue = event.target.value;
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
+            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+            updateVariable({ max: newValue });
+        }
     };
 
     const handleStepChange = (event) => {
-        updateVariable({ step: parseFloat(event.target.value) });
+        const rawValue = event.target.value;
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
+            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+            updateVariable({ step: newValue });
+        }
     };
 
     // Handle slider change
@@ -116,8 +132,8 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
             <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold">{name}:</label>
                 <input
-                    type="number"
-                    value={parseFloat(variable.value.toPrecision(12))} // Round to step decimal places
+                    type="text"
+                    value={typeof variable.value === 'string' ? variable.value : parseFloat(variable.value.toPrecision(12))}
                     onChange={handleValueChange}
                     className="w-20 p-1 bg-gray-800 rounded text-white"
                 />
@@ -148,8 +164,8 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                         <div className="flex flex-col items-center space-y-1">
                             <label className="text-xs">Min:</label>
                             <input
-                                type="number"
-                                value={variable.min}
+                                type="text"
+                                value={typeof variable.min === 'string' ? variable.min : variable.min}
                                 onChange={handleMinChange}
                                 className="w-8 p-1 bg-gray-800 rounded text-white text-xs"
                             />
@@ -157,8 +173,8 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                         <div className="flex flex-col items-center space-y-1">
                             <label className="text-xs">Max:</label>
                             <input
-                                type="number"
-                                value={variable.max}
+                                type="text"
+                                value={typeof variable.max === 'string' ? variable.max : variable.max}
                                 onChange={handleMaxChange}
                                 className="w-8 p-1 bg-gray-800 rounded text-white text-xs"
                             />
@@ -166,8 +182,8 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                         <div className="flex flex-col items-center space-y-1">
                             <label className="text-xs">Step:</label>
                             <input
-                                type="number"
-                                value={variable.step}
+                                type="text"
+                                value={typeof variable.step === 'string' ? variable.step : variable.step}
                                 onChange={handleStepChange}
                                 className="w-16 p-1 bg-gray-800 rounded text-white text-xs"
                             />
@@ -236,7 +252,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
                             step={Math.abs(variable.step)}  // Ensure step is always positive for the slider
                             value={variable.value}
                             onChange={handleSliderChange}
-                            className="w-full"
+                            className="w-full var-control-slider"
                         />
                     </div>
                 </div>

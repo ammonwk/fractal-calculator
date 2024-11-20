@@ -1,6 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FiShare2, FiHome, FiZoomIn, FiZoomOut, FiDownload, FiMaximize, FiMinimize } from 'react-icons/fi';
 
+const IconButton = ({ onClick, onMouseDown, onMouseUp, onMouseLeave, title, children, isActive }) => (
+    <button
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        className={`p-2 rounded-lg transition-all duration-200
+                   ${isActive
+                ? 'bg-blue-500 text-white shadow-lg animate-pulse'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+        title={title}
+    >
+        <div className="relative">
+            {children}
+            {isActive && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+        </div>
+    </button>
+);
+
 function RightSideBar({
     onShare,
     onResetView,
@@ -157,27 +178,6 @@ function RightSideBar({
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
-
-    const IconButton = ({ onClick, onMouseDown, onMouseUp, onMouseLeave, title, children, isActive }) => (
-        <button
-            onClick={onClick}
-            onMouseDown={onMouseDown}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseLeave}
-            className={`p-2 rounded-lg transition-all duration-200
-                   ${isActive
-                    ? 'bg-blue-500 text-white shadow-lg animate-pulse'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
-            title={title}
-        >
-            <div className="relative">
-                {children}
-                {isActive && (
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
-            </div>
-        </button>
-    );
 
     return (
         <div ref={sidebarRef} className="fixed right-0 top-0 h-full w-12 bg-gray-800 border-l border-gray-700 

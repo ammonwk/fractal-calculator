@@ -352,7 +352,6 @@ input[type="number"] {
 }
 
 
-/* Add these styles to your CSS */
 input[type="range"] {
     -webkit-appearance: none; /* Removes default webkit styles */
     appearance: none;
@@ -383,6 +382,35 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
     cursor: pointer;
     transition: background 0.2s;
+}
+
+.var-control-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  height: 8px !important;
+  background: rgb(31, 41, 55) !important;
+  /* bg-gray-800 */
+  border-radius: 0.5rem !important;
+  outline: none !important;
+}
+
+.var-control-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  background: rgb(59, 130, 246) !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+}
+
+.var-control-slider::-moz-range-thumb {
+  width: 16px !important;
+  height: 16px !important;
+  background: rgb(59, 130, 246) !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  border: none !important;
 }
 
 /* Hover states */

@@ -7,11 +7,12 @@ function FractalLoader() {
     const { id } = useParams();
     const [fractalState, setFractalState] = useState(null);
     const navigate = useNavigate();
+    const DEFAULT_FRACTAL_ID = '673d4a098439aa6cb7f6ef32';
 
     useEffect(() => {
         const loadFractal = async () => {
             try {
-                const loadedFractal = await fetchFractalById(id);
+                const loadedFractal = await fetchFractalById(id || DEFAULT_FRACTAL_ID);
                 console.log('Loaded fractal', loadedFractal);
                 setFractalState(loadedFractal);
             } catch (error) {
@@ -25,7 +26,6 @@ function FractalLoader() {
 
     if (!fractalState) return <div>Loading...</div>;
 
-    // Pass loaded fractal state as props
     return (
         <FractalEditor
             initialInput={fractalState.input}
