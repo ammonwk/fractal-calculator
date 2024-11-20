@@ -89,6 +89,35 @@ export function translateToGLSL(node) {
                         const rightIsComplex = right.isComplex;
                         const rightIsInteger = !rightIsComplex && Number.isInteger(parseFloat(right.glsl));
 
+                        // Special cases for small integer powers
+                        if (!rightIsComplex) {
+                            const base = leftIsComplex ? left.glsl : `vec2(${left.glsl}, 0.0)`;
+
+                            if (right.glsl === "2.0") {
+                                return cacheExpression(
+                                    `vec2(${base}.x * ${base}.x - ${base}.y * ${base}.y, 2.0 * ${base}.x * ${base}.y)`,
+                                    true
+                                );
+                            }
+
+                            if (right.glsl === "3.0") {
+                                // For z³ = z * z²
+                                return cacheExpression(
+                                    `complexMul(${base}, vec2(${base}.x * ${base}.x - ${base}.y * ${base}.y, 2.0 * ${base}.x * ${base}.y))`,
+                                    true
+                                );
+                            }
+
+                            if (right.glsl === "4.0") {
+                                // For z⁴ = (z²)²
+                                const z2 = `vec2(${base}.x * ${base}.x - ${base}.y * ${base}.y, 2.0 * ${base}.x * ${base}.y)`;
+                                return cacheExpression(
+                                    `vec2(${z2}.x * ${z2}.x - ${z2}.y * ${z2}.y, 2.0 * ${z2}.x * ${z2}.y)`,
+                                    true
+                                );
+                            }
+                        }
+
                         if (leftIsComplex || rightIsComplex || !rightIsInteger) {
                             // Promote real numbers to vec2 if necessary
                             const base = leftIsComplex ? left.glsl : `vec2(${left.glsl}, 0.0)`;

@@ -7,7 +7,7 @@ function FractalLoader() {
     const { id } = useParams();
     const [fractalState, setFractalState] = useState(null);
     const navigate = useNavigate();
-    const DEFAULT_FRACTAL_ID = '673d4a098439aa6cb7f6ef32';
+    const DEFAULT_FRACTAL_ID = '673d51608439aa6cb7f6ef34';
 
     useEffect(() => {
         const loadFractal = async () => {
