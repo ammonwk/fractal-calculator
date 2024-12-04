@@ -136,6 +136,7 @@ function Controls({
             );
             const syntaxTree = parse(replacedTokens);
             const glslCode = translateToGLSL(syntaxTree);
+            console.log(glslCode);
             onEquationChange(glslCode);
             setError(null);
         } catch (error) {
@@ -221,14 +222,6 @@ function Controls({
     const handleMouseLeave = () => {
         setTooltip({ ...tooltip, visible: false });
     };
-
-    // Clean up debounced functions
-    useEffect(() => {
-        return () => {
-            debouncedGraphicsQualityChange.cancel();
-            debouncedSharpnessChange.cancel();
-        };
-    }, []);
 
     return (
         <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>

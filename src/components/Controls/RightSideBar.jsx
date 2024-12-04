@@ -165,11 +165,6 @@ function RightSideBar({
         }
     };
 
-    // Clean up interval on unmount
-    useEffect(() => {
-        return () => stopZoomInterval();
-    }, []);
-
     // Update fullscreen state when it changes outside our control
     useEffect(() => {
         const handleFullscreenChange = () => {

@@ -20,6 +20,7 @@ app.use(compression({ level: 6 }));
 const port = process.argv.length > 2 ? process.argv[2] : 3000;
 
 // Security Middlewares
+app.set('trust proxy', 'loopback'); // Trust the Nginx proxy
 app.disable('x-powered-by');
 
 app.use((req, res, next) => {
@@ -69,7 +70,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-let db;
+let fractalsDb;
+let metricsDb;
 
 // Connect to MongoDB
 const mongoUri = `mongodb+srv://${config.dbUsername}:${config.dbPassword}@${config.dbHostname}`;
@@ -79,13 +81,15 @@ const client = new MongoClient(mongoUri);
 (async function testConnection() {
     try {
         await client.connect();
-        db = client.db('fractals');
-        await db.command({ ping: 1 });
-        console.log('Connected to database', db.databaseName);
+        fractalsDb = client.db('fractals');
+        metricsDb = client.db('metrics'); // Add metrics database
+        await fractalsDb.command({ ping: 1 });
+        console.log('Connected to databases:', fractalsDb.databaseName, metricsDb.databaseName);
 
-        // Create index on encodedState
-        await db.collection('fractals').createIndex({ encodedState: 1 });
-        console.log('Indexes created successfully');
+        // Create indexes for metrics collections
+        await metricsDb.collection('pageVisits').createIndex({ date: 1 });
+        await metricsDb.collection('uniqueVisitors').createIndex({ ip: 1 }, { unique: true });
+        console.log('Metrics indexes created successfully');
 
         // Start the server after successful DB connection
         app.listen(port, () => {
@@ -98,6 +102,74 @@ const client = new MongoClient(mongoUri);
         process.exit(1);
     }
 })();
+
+// Add a middleware to track visits
+app.use(async (req, res, next) => {
+    // Only track actual page visits, not API calls
+    console.log('Request path:', req.path);
+    if (req.path.startsWith('/api/loadFractal') || !req.path.startsWith('/api/') && req.path !== '/favicon.ico') {
+        console.log('Tracking visit for path:', req.path);
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const ip = req.ip;
+
+            // Update total visits
+            await metricsDb.collection('pageVisits').updateOne(
+                { _id: 'total' },
+                { $inc: { count: 1 } },
+                { upsert: true }
+            );
+
+            // Update daily visits
+            await metricsDb.collection('pageVisits').updateOne(
+                { date: today },
+                { $inc: { count: 1 } },
+                { upsert: true }
+            );
+
+            // Add unique visitor
+            await metricsDb.collection('uniqueVisitors').updateOne(
+                { ip: ip },
+                { $setOnInsert: { ip: ip, firstVisit: new Date() } },
+                { upsert: true }
+            );
+        } catch (error) {
+            console.error('Error tracking metrics:', error);
+            // Don't block the request if metrics tracking fails
+        }
+    }
+    next();
+});
+
+// Add API endpoints to retrieve metrics
+app.get('/api/metrics', async (req, res) => {
+    try {
+        // Get total visits
+        const totalVisits = await metricsDb.collection('pageVisits').findOne({ _id: 'total' });
+
+        // Get daily visits
+        const dailyVisits = await metricsDb.collection('pageVisits')
+            .find({ date: { $exists: true } })
+            .sort({ date: -1 })
+            .toArray();
+
+        // Get unique visitors count
+        const uniqueVisitors = await metricsDb.collection('uniqueVisitors').countDocuments();
+
+        res.json({
+            totalVisits: totalVisits?.count || 0,
+            dailyVisits: dailyVisits.map(visit => ({
+                date: visit.date,
+                count: visit.count
+            })),
+            uniqueVisitors: uniqueVisitors
+        });
+    } catch (error) {
+        console.error('Error fetching metrics:', error);
+        res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+});
 
 // API route to save fractal
 app.post(
@@ -113,7 +185,7 @@ app.post(
 
         try {
             const id = new ObjectId();
-            const collection = db.collection('fractals');
+            const collection = fractalsDb.collection('fractals');
             await collection.insertOne({
                 _id: id,
                 encodedState,
@@ -142,7 +214,7 @@ app.get(
         const { id } = req.params;
 
         try {
-            const collection = db.collection('fractals');
+            const collection = fractalsDb.collection('fractals');
             const fractal = await collection.findOne({ _id: new ObjectId(id) });
 
             if (!fractal) {
