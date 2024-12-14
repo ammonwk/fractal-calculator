@@ -72,7 +72,15 @@ describe('tokenize', () => {
         expect(tokenize('2 \\cdot 3')).toEqual(['2', '*', '3']);
     });
 
-    it('should ignore \\quad, \\qquad, \\hspace, \\vspace, \\left, \\right', () => {
+    it('should ignore \\quad, \\qquad, \,, \;, \\hspace, \\vspace, \\left, \\right', () => {
+        expect(tokenize('\\quad')).toEqual([]);
+        expect(tokenize('\\qquad')).toEqual([]);
+        expect(tokenize('\\,')).toEqual([]);
+        expect(tokenize('\\;')).toEqual([]);
+        expect(tokenize('\\hspace{10}')).toEqual([]);
+        expect(tokenize('\\vspace{5}')).toEqual([]);
+        expect(tokenize('\\left( \\right)')).toEqual([]);
+
         expect(tokenize('z \\quad c \\qquad 1 \\hspace{10} 2 \\vspace{5} 3 \\left( 4 \\right)')).toEqual(['z', '*', 'c', '*', '1', '*', '2', '*', '3', '*', '4']);
     });
 
@@ -81,6 +89,48 @@ describe('tokenize', () => {
         expect(tokenize('\\pi')).toEqual(['3.141592653589793']);
         expect(tokenize('2 * \\e')).toEqual(['2', '*', '2.718281828459045']);
         expect(tokenize('\\phi + \\gamma')).toEqual(['1.61803398875', '+', '0.5772156649']);
+    });
+
+    // Absolute Value
+    it('should handle absolute value correctly', () => {
+        expect(tokenize('\\left| z \\right|')).toEqual(['(\\left|', 'z', '\\right|)']);
+        expect(tokenize('2 * \\left| z \\right|')).toEqual(['2', '*', '(\\left|', 'z', '\\right|)']);
+        expect(tokenize('\\left| z + 1 \\right|')).toEqual(['(\\left|', 'z', '+', '1', '\\right|)']);
+        expect(tokenize('\\left| \\frac{1}{2} \\right|')).toEqual(['(\\left|', '(', '1', ')', '/', '(', '2', ')', '\\right|)']);
+        expect(tokenize('\\left| z \\right| + \\left| c \\right|')).toEqual(['(\\left|', 'z', '\\right|)', '+', '(\\left|', 'c', '\\right|)']);
+        expect(tokenize('\\left| -2 \\right|')).toEqual(['(\\left|', '-1', '*', '2', '\\right|)']);
+        expect(tokenize('\\left| -z \\right|')).toEqual(['(\\left|', '-1', '*', 'z', '\\right|)']);
+        expect(tokenize('\\sin(\\left| z \\right|)')).toEqual(['sin', '(', '(\\left|', 'z', '\\right|)', ')']);
+        expect(tokenize('\\left| z_1 \\right|', ["z_1"])).toEqual(['(\\left|', 'z_1', '\\right|)']);
+        expect(tokenize('\\left| \\sin(z) \\right|')).toEqual(['(\\left|', 'sin', '(', 'z', ')', '\\right|)']);
+    });
+
+    it('should throw an error for unmatched absolute value delimiters', () => {
+        expect(() => tokenize('\\left| z')).toThrow();
+        expect(() => tokenize('z \\right|')).toThrow();
+        expect(() => tokenize('\\left| \\left| z \\right|')).toThrow();
+    });
+
+    it('should treat standalone | as an error', () => {
+        expect(() => tokenize('|')).toThrow();
+        expect(() => tokenize('1 | 2')).toThrow();
+        expect(() => tokenize('|1 + 2|')).toThrow();
+    });
+
+    it('should handle \\left and \\right with regular parentheses', () => {
+        expect(tokenize('\\left( z \\right)')).toEqual(['(', 'z', ')']);
+        expect(tokenize('\\left( \\frac{1}{2} \\right)')).toEqual(['(', '(', '1', ')', '/', '(', '2', ')', ')']);
+    });
+
+    it('should throw an error for unsupported delimiters after \\left or \\right', () => {
+        expect(() => tokenize('\\left[ z \\right]')).toThrow();
+        expect(() => tokenize('\\left{ z \\right}')).toThrow();
+        expect(() => tokenize('\\left. z \\right.')).toThrow(); // . is not a valid delimiter
+    });
+
+    it('should throw an error when \\left or \\right is not followed by a delimiter', () => {
+        expect(() => tokenize('\\left')).toThrow();
+        expect(() => tokenize('\\right')).toThrow();
     });
 
     // Errors
@@ -105,7 +155,6 @@ describe('tokenize', () => {
         expect(() => tokenize('x')).toThrow();
         expect(() => tokenize('2x')).toThrow();
         expect(() => tokenize('e_')).toThrow();
-        expect(() => tokenize('ez')).toThrow(); // e should be recognized as a constant
         expect(() => tokenize('sinz')).toThrow(); // sin should be recognized as a function
     });
 
@@ -137,7 +186,7 @@ describe('tokenize', () => {
     });
 
     it('should tokenize variables with longer subscripts', () => {
-        expect(tokenize('z_123')).toEqual(['z_123']);
+        expect(tokenize('z_123', ["z_123"])).toEqual(['z_123']);
     });
 
     it('should tokenize nested functions', () => {

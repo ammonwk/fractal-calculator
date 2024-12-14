@@ -111,10 +111,12 @@ function processFrac(tokens, start) {
     const processedNumerator = processTokenList(numeratorTokens);
     const processedDenominator = processTokenList(denominatorTokens);
 
-    // Combine into (numerator / denominator)
+    // Combine into (numerator)/(denominator)
     transformed.push('(');
     transformed.push(...processedNumerator);
+    transformed.push(')');
     transformed.push('/');
+    transformed.push('(');
     transformed.push(...processedDenominator);
     transformed.push(')');
 
@@ -233,14 +235,25 @@ export function tokenize(input, variables = []) {
             }
             // Handle \left and \right for absolute values
             else if (cmd === 'left' || cmd === 'right') {
-                if (i < input.length && input[i] === '|') {
-                    tokens.push({
-                        type: cmd === 'left' ? 'abs_open' : 'abs_close',
-                        value: cmd === 'left' ? '(\\left|' : '\\right|)'
-                    });
-                    i++; // Skip the |
+                if (i < input.length) {
+                    if (input[i] === '|') {
+                        tokens.push({
+                            type: cmd === 'left' ? 'abs_open' : 'abs_close',
+                            value: cmd === 'left' ? '(\\left|' : '\\right|)'
+                        });
+                        i++; // Skip the |
+                    } else if (input[i] === '(' || input[i] === ')') {
+                        // Just treat it as a regular parenthesis
+                        tokens.push({
+                            type: 'parenthesis',
+                            value: input[i]
+                        });
+                        i++; // Skip the parenthesis
+                    } else {
+                        throw new Error(`Unsupported delimiter '${input[i]}' after \\${cmd} at position ${i}.`);
+                    }
                 } else {
-                    throw new Error(`Invalid use of \\${cmd} without a following '|' at position ${i}.`);
+                    throw new Error(`Expected delimiter after \\${cmd} at position ${i}.`);
                 }
                 continue;
             }
@@ -349,7 +362,7 @@ export function tokenize(input, variables = []) {
             if (char === '-') {
                 const prevToken = tokens.length > 0 ? tokens[tokens.length - 1] : null;
 
-                if (!prevToken || prevToken.type === 'operator' || prevToken.value === '(') {
+                if (!prevToken || prevToken.type === 'operator' || prevToken.value === '(' || prevToken.value === '(\\left|') {
                     // Unary minus (negation)
                     tokens.push({ type: 'number', value: '-1' });
                     tokens.push({ type: 'operator', value: '*' });

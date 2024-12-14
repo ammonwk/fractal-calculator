@@ -67,6 +67,11 @@ export function translateToGLSL(node) {
                             isComplex: false
                         };
                     case '/':
+                        if (right.glsl === 'z') {  // Direct division by z or 0
+                            throw new Error("This formula would divide by zero when z = 0. Try modifying the equation to avoid this.");
+                        } else if (right.glsl === 'vec2(0.0, 0.0)') {
+                            throw new Error("This formula would divide by zero. Try modifying the equation to avoid this.");
+                        }
                         if (left.isComplex && right.isComplex) {
                             return cacheExpression(
                                 `complexDiv(${left.glsl}, ${right.glsl})`,
@@ -200,7 +205,7 @@ export function translateToGLSL(node) {
                     // For complex numbers, use length()
                     return cacheExpression(
                         `vec2(length(${arg.glsl}), 0.0)`,
-                        true // isComplex should be true
+                        true
                     );
                 } else {
                     // For real numbers, use abs()
@@ -304,7 +309,9 @@ export function translateToGLSL(node) {
     // Begin processing the AST
     let result = processNode(node);
 
-    result = result.isComplex ? result.glsl : `vec2(${result.glsl}, 0.0)`;
+    result = (result.isComplex || result.glsl.startsWith('vec2(')) ?
+        result.glsl :
+        `vec2(${result.glsl}, 0.0)`;
 
     if (result.includes("undefined")) {
         throw new Error('Internal error: Undefined in generated GLSL code. Please check your expression for mistakes.');
