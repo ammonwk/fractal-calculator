@@ -106,9 +106,7 @@ const client = new MongoClient(mongoUri);
 // Add a middleware to track visits
 app.use(async (req, res, next) => {
     // Only track actual page visits, not API calls
-    console.log('Request path:', req.path);
     if (req.path.startsWith('/api/loadFractal') || !req.path.startsWith('/api/') && req.path !== '/favicon.ico') {
-        console.log('Tracking visit for path:', req.path);
         try {
             const today = new Date();
             today.setHours(0, 0, 0, 0);

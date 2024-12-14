@@ -295,7 +295,7 @@ export function tokenize(input, variables = []) {
                     i++;
                 }
             }
-            
+
             if (varName === 'e') {
                 tokens.push({ type: 'constant', value: '2.718281828459045' });
             } else { // Validate variable
@@ -316,7 +316,21 @@ export function tokenize(input, variables = []) {
                 i += 2;
                 continue;
             }
-            tokens.push({ type: 'operator', value: char });
+            // Handle '-' as unary or binary minus
+            if (char === '-') {
+                const prevToken = tokens.length > 0 ? tokens[tokens.length - 1] : null;
+
+                if (!prevToken || prevToken.type === 'operator' || prevToken.value === '(') {
+                    // Unary minus (negation)
+                    tokens.push({ type: 'number', value: '-1' });
+                    tokens.push({ type: 'operator', value: '*' });
+                } else {
+                    // Binary minus (subtraction)
+                    tokens.push({ type: 'operator', value: '-' });
+                }
+            } else {
+                tokens.push({ type: 'operator', value: char });
+            }
             i++;
             continue;
         }
