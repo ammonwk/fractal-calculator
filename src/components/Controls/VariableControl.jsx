@@ -68,47 +68,49 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
         updateVariable({ isPlaying: !variable.isPlaying });
     };
 
-    // Handle value change for variable.value
-    const handleValueChange = (event) => {
-        const rawValue = event.target.value;
-        // Allow empty string, minus sign, decimal point, numbers, and numbers ending in a period
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
-            // If the number ends in a period, keep it as a string, otherwise convert to a float or keep as a string
-            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
-            updateVariable({ value: newValue });
-        }
-    };
-
-
     const handleDelete = () => {
         onVariableDelete(name);
     };
 
     // Handle min, max, and step changes
-    const handleMinChange = (event) => {
-        const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
-            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
-            updateVariable({ min: newValue });
+    const handleNumericInput = (rawValue, onUpdate) => {
+        // First check if it's a valid numeric input state
+        if (/^-?\d*\.?\d*$/.test(rawValue)) {
+            // If it's empty or a partial number, keep as string
+            if (rawValue === '' ||
+                rawValue === '-' ||
+                !Number.isFinite(Number(rawValue))) {
+                onUpdate(rawValue);
+                return;
+            }
+
+            // Otherwise, preserve the exact string representation of the number
+            onUpdate(rawValue);
         }
     };
 
+    const handleValueChange = (event) => {
+        handleNumericInput(event.target.value, (newValue) => {
+            updateVariable({ value: newValue });
+        });
+    };
+
+    const handleMinChange = (event) => {
+        handleNumericInput(event.target.value, (newValue) => {
+            updateVariable({ min: newValue });
+        });
+    };
 
     const handleMaxChange = (event) => {
-        const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
-            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
+        handleNumericInput(event.target.value, (newValue) => {
             updateVariable({ max: newValue });
-        }
+        });
     };
 
-
     const handleStepChange = (event) => {
-        const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
-            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
+        handleNumericInput(event.target.value, (newValue) => {
             updateVariable({ step: newValue });
-        }
+        });
     };
 
     // Handle slider change
