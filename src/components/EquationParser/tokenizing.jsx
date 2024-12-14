@@ -192,6 +192,7 @@ export function tokenize(input, variables = []) {
     let i = 0;
 
     while (i < input.length) {
+        let start = i; // Start position of the current token
         const char = input[i];
 
         // Skip whitespace
@@ -202,13 +203,13 @@ export function tokenize(input, variables = []) {
 
         // Handle LaTeX commands (functions and operators)
         if (char === '\\') {
-            let start = i;
             i++; // Skip the backslash
 
             // Handle backslash followed by space (\ )
             if (input[i] === ' ') {
                 // It's a space command; ignore it
                 i++; // Skip the space
+                start = i; // Update start position
                 continue;
             }
 
@@ -221,7 +222,6 @@ export function tokenize(input, variables = []) {
 
             if (isConstant(cmd)) {
                 tokens.push({ type: 'constant', value: knownConstants[cmd] });
-                continue;
             } else if (isFunction(cmd)) {
                 tokens.push({ type: 'function', value: cmd });
             }
@@ -233,13 +233,17 @@ export function tokenize(input, variables = []) {
             else if (cmd === 'frac') {
                 tokens.push({ type: 'operator', value: 'frac' });
             }
-            // Handle ignored commands
-            else if (ignoredCommands.includes(cmd)) {
-                // Ignore the command and continue
+            // Handle \left and \right specifically
+            else if (cmd === 'left' || cmd === 'right') {
+                // Expecting a delimiter after \left or \right, skip it
+                if (i < input.length && (input[i] === '(' || input[i] === ')' || input[i] === '[' || input[i] === ']' || input[i] === '{' || input[i] === '}' || input[i] === '|' || input[i] === '.')) {
+                    i++; // Skip the delimiter
+                }
+                start = i; // Update start position
                 continue;
             }
             // Handle commands with arguments like \hspace{...}
-            else if (cmd === 'hspace' || cmd === 'vspace') {
+            else if (cmd === 'hspace' || cmd === 'vspace' || cmd === 'quad' || cmd === 'qquad') {
                 // Expecting a brace-enclosed argument, skip it
                 if (input[i] === '{') {
                     let braceCount = 1;
@@ -250,11 +254,12 @@ export function tokenize(input, variables = []) {
                         i++;
                     }
                 }
+                start = i; // Update start position
                 continue;
             }
-            // Handle other ignored commands with potential arguments
-            else if (ignoredCommands.some(ic => cmd.startsWith(ic))) {
-                // For any other commands that start with an ignored command, skip them
+            // Handle \, and \;
+            else if (cmd === '' || cmd === ';') {
+                start = i; // Update start position
                 continue;
             }
             // Handle unknown commands or throw error
@@ -347,7 +352,7 @@ export function tokenize(input, variables = []) {
         }
 
         // If none matched, throw an error for invalid character
-        throw new Error(`Invalid character '${char}' at position ${i}.`);
+        throw new Error(`Invalid character '${char}' at position ${start}.`);
     }
 
     // At this point, tokens contain all the tokens including 'frac' operators
