@@ -1,5 +1,5 @@
 const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log'];
-const allowedVariables = ['z', 'c', 'i', 'e'];
+const allowedVariables = ['z', 'c', 'i'];
 
 // spacing and formatting commands to ignore
 const ignoredCommands = [
@@ -287,29 +287,56 @@ export function tokenize(input, variables = []) {
             continue;
         }
 
-        // Handle variables (with optional subscripts)
+        // Handle variables and the constant 'e'
         if (isLetter(char)) {
             let varName = char;
             i++;
-            // Handle subscripts like _0, _1, etc.
-            if (input[i] === '_') {
+
+            // Check for constant 'e'
+            if (varName === 'e' && (i === input.length || (input[i] !== '_'))) {
+                tokens.push({ type: 'constant', value: knownConstants['e'] });
+                continue;
+            }
+
+            // Handle subscripts
+            if (i < input.length && input[i] === '_') {
                 varName += '_';
                 i++;
-                while (i < input.length && (isDigit(input[i]) || isLetter(input[i]))) {
-                    varName += input[i];
-                    i++;
+
+                // Handle multi-character subscripts in braces
+                if (i < input.length && input[i] === '{') {
+                    i++; // Skip the opening brace '{'
+                    while (i < input.length && input[i] !== '}') {
+                        if (!isDigit(input[i]) && !isLetter(input[i])) {
+                            throw new Error(`Invalid character in subscript at position ${i}. Subscripts must contain only digits or letters.`);
+                        }
+                        varName += input[i];
+                        i++;
+                    }
+                    if (i === input.length) {
+                        throw new Error("Unmatched opening brace '{' in subscript.");
+                    }
+                    i++; // Skip the closing brace '}'
+                } else if (i < input.length && (isDigit(input[i]) || isLetter(input[i]))) {
+                    // Handle single-character subscripts
+                    while (i < input.length && (isDigit(input[i]) || isLetter(input[i]))) {
+                        varName += input[i];
+                        i++;
+                    }
+                } else {
+                    throw new Error(`Incomplete subscript found at position ${i - 1}. Subscripts must be followed by at least one digit or letter, or enclosed in braces.`);
                 }
             }
 
-            if (varName === 'e') {
-                tokens.push({ type: 'constant', value: '2.718281828459045' });
-            } else { // Validate variable
-                const baseVar = varName.split('_')[0];
-                if (!extendedAllowedVariables.includes(baseVar)) {
-                    throw new Error(`Invalid variable '${baseVar}' found. Allowed variables are: ${extendedAllowedVariables.join(', ')}.`);
-                }
-                tokens.push({ type: 'variable', value: varName });
+            // Validate variable (no changes needed here)
+            if (varName.length > 1 && !extendedAllowedVariables.includes(varName)) {
+                throw new Error(`Invalid variable '${varName}' found. Allowed variables are single letters or: ${extendedAllowedVariables.join(', ')}.`);
             }
+            if (varName.length === 1 && varName !== 'e' && !extendedAllowedVariables.includes(varName)) {
+                throw new Error(`Invalid variable '${varName}' found. Allowed variables are single letters or: ${extendedAllowedVariables.join(', ')}.`);
+            }
+
+            tokens.push({ type: 'variable', value: varName });
             continue;
         }
 
