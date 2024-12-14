@@ -71,12 +71,14 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
     // Handle value change for variable.value
     const handleValueChange = (event) => {
         const rawValue = event.target.value;
-        // Allow empty string, minus sign, decimal point, and numbers
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
-            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+        // Allow empty string, minus sign, decimal point, numbers, and numbers ending in a period
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
+            // If the number ends in a period, keep it as a string, otherwise convert to a float or keep as a string
+            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
             updateVariable({ value: newValue });
         }
     };
+
 
     const handleDelete = () => {
         onVariableDelete(name);
@@ -85,24 +87,26 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
     // Handle min, max, and step changes
     const handleMinChange = (event) => {
         const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
-            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
+            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
             updateVariable({ min: newValue });
         }
     };
 
+
     const handleMaxChange = (event) => {
         const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
-            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
+            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
             updateVariable({ max: newValue });
         }
     };
 
+
     const handleStepChange = (event) => {
         const rawValue = event.target.value;
-        if (rawValue === '' || rawValue === '-' || rawValue === '.' || !isNaN(parseFloat(rawValue))) {
-            const newValue = rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue);
+        if (rawValue === '' || rawValue === '-' || rawValue === '.' || /^-?\d*\.?\d*$/.test(rawValue)) {
+            const newValue = rawValue.endsWith('.') ? rawValue : (rawValue === '' || rawValue === '-' || rawValue === '.' ? rawValue : parseFloat(rawValue));
             updateVariable({ step: newValue });
         }
     };
@@ -126,7 +130,7 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
     const toggleExpand = () => {
         updateVariable({ isExpanded: !variable.isExpanded });
     };
-    
+
     return (
         <div className="bg-gray-700 p-2 rounded mt-2">
             <div className="flex items-center justify-between">
