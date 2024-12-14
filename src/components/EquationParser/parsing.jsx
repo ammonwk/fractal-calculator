@@ -42,6 +42,16 @@ export function parse(tokens) {
 
         let token = tokens[index++];
 
+        // Handle absolute value
+        if (token === '(\\left|') {
+            const argument = parseExpression();
+            if (index >= tokens.length || tokens[index] !== '\\right|)') {
+                throw new Error('Mismatched absolute value delimiters. Ensure every \\left| has a corresponding \\right|.');
+            }
+            index++; // Consume the \right|
+            return { type: 'absoluteValue', argument };
+        }
+
         if (token === '(' || token === '\\left(') {
             const node = parseExpression();
             if (tokens[index] !== ')' && tokens[index] !== '\\right)') {

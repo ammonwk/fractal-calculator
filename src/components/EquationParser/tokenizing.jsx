@@ -10,8 +10,6 @@ const ignoredCommands = [
     ';',      // \;
     'hspace', // \hspace{...}
     'vspace', // \vspace{...}
-    'left',   // \left
-    'right'   // \right
 ];
 
 const knownConstants = {
@@ -63,7 +61,7 @@ function isDigit(char) {
  * @returns {boolean}
  */
 function isOperator(char) {
-    return /[+\-*/^=|]/.test(char);
+    return /[+\-*/^=]/.test(char);
 }
 
 /**
@@ -233,17 +231,21 @@ export function tokenize(input, variables = []) {
             else if (cmd === 'frac') {
                 tokens.push({ type: 'operator', value: 'frac' });
             }
-            // Handle \left and \right specifically
+            // Handle \left and \right for absolute values
             else if (cmd === 'left' || cmd === 'right') {
-                // Expecting a delimiter after \left or \right, skip it
-                if (i < input.length && (input[i] === '(' || input[i] === ')' || input[i] === '[' || input[i] === ']' || input[i] === '{' || input[i] === '}' || input[i] === '|' || input[i] === '.')) {
-                    i++; // Skip the delimiter
+                if (i < input.length && input[i] === '|') {
+                    tokens.push({
+                        type: cmd === 'left' ? 'abs_open' : 'abs_close',
+                        value: cmd === 'left' ? '(\\left|' : '\\right|)'
+                    });
+                    i++; // Skip the |
+                } else {
+                    throw new Error(`Invalid use of \\${cmd} without a following '|' at position ${i}.`);
                 }
-                start = i; // Update start position
                 continue;
             }
             // Handle commands with arguments like \hspace{...}
-            else if (cmd === 'hspace' || cmd === 'vspace' || cmd === 'quad' || cmd === 'qquad') {
+            else if (ignoredCommands.includes(cmd)) {
                 // Expecting a brace-enclosed argument, skip it
                 if (input[i] === '{') {
                     let braceCount = 1;
@@ -254,11 +256,6 @@ export function tokenize(input, variables = []) {
                         i++;
                     }
                 }
-                start = i; // Update start position
-                continue;
-            }
-            // Handle \, and \;
-            else if (cmd === '' || cmd === ';') {
                 start = i; // Update start position
                 continue;
             }
@@ -378,6 +375,11 @@ export function tokenize(input, variables = []) {
             continue;
         }
 
+        // Handle standalone | (error)
+        if (char === '|') {
+            throw new Error(`Incomplete absolute value delimiter '|' at position ${start}.`);
+        }
+
         // If none matched, throw an error for invalid character
         throw new Error(`Invalid character '${char}' at position ${start}.`);
     }
@@ -410,17 +412,19 @@ export function tokenize(input, variables = []) {
             const currentIsNumber = /^[0-9.]+$/.test(currentToken);
             const currentIsVariable = /^[A-Za-z][A-Za-z0-9_]*$/.test(currentToken);
             const currentIsClosingParen = currentToken === ')';
+            const currentIsClosingAbs = currentToken === '\\right|)';
 
             const nextIsNumber = /^[0-9.]+$/.test(nextToken);
             const nextIsVariable = /^[A-Za-z][A-Za-z0-9_]*$/.test(nextToken);
             const nextIsFunction = knownFunctions.includes(nextToken);
             const nextIsOpeningParen = nextToken === '(';
+            const nextIsOpeningAbs = nextToken === '(\\left|';
 
             const currentIsFunction = knownFunctions.includes(currentToken);
 
             const needsMultiplication =
-                (currentIsNumber || currentIsVariable || currentIsClosingParen) &&
-                (nextIsVariable || nextIsNumber || nextIsFunction || nextIsOpeningParen) &&
+                (currentIsNumber || currentIsVariable || currentIsClosingParen || currentIsClosingAbs) &&
+                (nextIsVariable || nextIsNumber || nextIsFunction || nextIsOpeningParen || nextIsOpeningAbs) &&
                 !currentIsFunction;  // Prevent multiplication between a function and its argument
 
             if (needsMultiplication) {
@@ -443,6 +447,22 @@ export function tokenize(input, variables = []) {
     }
     if (openParenCount > 0) {
         throw new Error("Unmatched opening parenthesis '('.");
+    }
+
+    // Validate absolute value delimiters
+    let absOpenCount = 0;
+    for (let token of processedTokens) {
+        if (token === '(\\left|') {
+            absOpenCount++;
+        } else if (token === '\\right|)') {
+            absOpenCount--;
+            if (absOpenCount < 0) {
+                throw new Error("Unmatched closing absolute value delimiter '\\right|'.");
+            }
+        }
+    }
+    if (absOpenCount > 0) {
+        throw new Error("Unmatched opening absolute value delimiter '\\left|'.");
     }
 
     // Return the processed tokens

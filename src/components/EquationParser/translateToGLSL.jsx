@@ -193,6 +193,23 @@ export function translateToGLSL(node) {
                     isComplex: false
                 };
             }
+            // Handle absolute value nodes
+            case 'absoluteValue': {
+                const arg = processNode(node.argument); // Recursively process the argument
+                if (arg.isComplex) {
+                    // For complex numbers, use length()
+                    return cacheExpression(
+                        `vec2(length(${arg.glsl}), 0.0)`,
+                        true // isComplex should be true
+                    );
+                } else {
+                    // For real numbers, use abs()
+                    return {
+                        glsl: `abs(${arg.glsl})`,
+                        isComplex: false
+                    };
+                }
+            }
             default: {
                 throw new Error(`Unsupported node type "${node.type}". This likely indicates a bug in the parser.`);
             }
