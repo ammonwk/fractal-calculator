@@ -98,6 +98,11 @@ function processFrac(tokens, start) {
     const numeratorTokens = numeratorResult.tokens;
     i = numeratorResult.newIndex;
 
+    // Check if numerator is empty
+    if (numeratorTokens.length === 0) {
+        throw new Error(`Empty numerator found in '\\frac' at position ${start}.`);
+    }
+
     // Process denominator
     if (!(tokens[i].type === 'parenthesis' && tokens[i].value === '(')) {
         throw new Error(`Expected '(' after '\\frac{numerator}' for denominator at position ${i}, found '${tokens[i].value}'.`);
@@ -106,6 +111,11 @@ function processFrac(tokens, start) {
     const denominatorResult = extractGroup(tokens, i);
     const denominatorTokens = denominatorResult.tokens;
     i = denominatorResult.newIndex;
+
+    // Check if denominator is empty
+    if (denominatorTokens.length === 0) {
+        throw new Error(`Empty denominator found in '\\frac' at position ${start}.`);
+    }
 
     // Recursively process numerator and denominator in case they contain 'frac'
     const processedNumerator = processTokenList(numeratorTokens);
@@ -122,6 +132,7 @@ function processFrac(tokens, start) {
 
     return { tokens: transformed, newIndex: i };
 }
+
 
 /**
  * Extracts a group of tokens enclosed by matching parentheses.
@@ -215,11 +226,18 @@ export function tokenize(input, variables = []) {
 
             // Collect all consecutive letters for the command
             let cmd = '';
-            while (i < input.length && isLetter(input[i])) {
+            while (i < input.length && (isLetter(input[i]) || input[i] === ',' || input[i] === ';')) {
                 cmd += input[i];
                 i++;
             }
 
+            // Check if the command is an ignored one
+            if (ignoredCommands.includes(cmd) || cmd === ',' || cmd === ';') {
+                start = i; // Update start position
+                continue;
+            }
+
+            // Check if the command is a known constant or function
             if (isConstant(cmd)) {
                 tokens.push({ type: 'constant', value: knownConstants[cmd] });
             } else if (isFunction(cmd)) {
@@ -352,6 +370,11 @@ export function tokenize(input, variables = []) {
 
         // Handle operators
         if (isOperator(char)) {
+            // Handle equals sign
+            if (char === '=') {
+                throw new Error("This equation is what z_n+1 is set equal to, you can't use another equals.");
+            }
+
             // Handle '**' as exponentiation if needed
             if (char === '*' && input[i + 1] === '*') {
                 tokens.push({ type: 'operator', value: '**' });
