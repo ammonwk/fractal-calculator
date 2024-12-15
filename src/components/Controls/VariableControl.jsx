@@ -12,31 +12,35 @@ function VariableControl({ name, variable, onVariableChange, onVariableDelete })
     // Update onPlayRef function when dependencies change
     useEffect(() => {
         onPlayRef.current = () => {
-            let newValue = variable.value + variable.step;
+            // First check if values are valid to be parsed as float
+            let value = !isNaN(parseFloat(variable.value)) ? parseFloat(variable.value) : parseFloat(variable.min);
+            let step = !isNaN(parseFloat(variable.step)) ? parseFloat(variable.step) : 0;
+            let max = !isNaN(parseFloat(variable.max)) ? parseFloat(variable.max) : 0;
+            let min = !isNaN(parseFloat(variable.min)) ? parseFloat(variable.min) : 0;
+            let newValue = value + step;
 
             if (variable.playMode === 'loop') {
-                if (newValue > variable.max) {
-                    newValue = variable.min;
+                if (newValue > max) {
+                    newValue = min;
                 }
-                if (newValue < variable.min) {
-                    newValue = variable.max;
+                if (newValue < min) {
+                    newValue = max;
                 }
             } else if (variable.playMode === 'bounce') {
-                if (newValue >= variable.max || newValue <= variable.min) {
+                if (newValue >= max || newValue <= min) {
                     updateVariable({
-                        step: -variable.step,
-                        value: Math.max(variable.min + Math.abs(variable.step), Math.min(newValue, variable.max - Math.abs(variable.step)))
+                        step: -step, // Convert to number before negating
+                        value: Math.max(min + Math.abs(step), Math.min(newValue, max - Math.abs(step)))
                     });
-                    newValue = Math.max(variable.min, Math.min(newValue, variable.max));
-                    return; // Exit early since we've already updated the state
+                    newValue = Math.max(min, Math.min(newValue, max));
+                    return;
                 }
             } else if (variable.playMode === 'rise') {
-                if (newValue < variable.min) {
-                    newValue = variable.min;
+                if (newValue < min) {
+                    newValue = min;
                 }
             }
 
-            // Pass the updated variable object to onVariableChange
             updateVariable({ value: newValue });
         };
     }, [variable]);
