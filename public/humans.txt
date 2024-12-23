@@ -1,0 +1,26 @@
+/* TEAM */
+Creator: Ammon Kunzler
+Site: https://juliascope.com
+GitHub: https://github.com/ammonwk/fractal-calculator
+
+/* SITE */
+Last update: 2024
+Standards: HTML5, CSS3, JavaScript
+Components: React 18.0, WebGL2, TailwindCSS, Node.js, Express, MongoDB
+Software: Vite, PM2
+Hosting: AWS EC2
+Language: English
+
+/* TECHNOLOGY */
+- Real-time GPU-accelerated fractal rendering using WebGL2 shaders
+- Custom LaTeX to GLSL compiler
+- FXAA anti-aliasing and adaptive resolution scaling
+- MongoDB state persistence
+- React frontend with TailwindCSS styling
+
+/* PURPOSE */
+JuliaScope is a high-performance web application for exploring 
+and visualizing mathematical fractals in real-time. Users can 
+input complex mathematical expressions in LaTeX format, which 
+are dynamically compiled to GLSL shaders for GPU-accelerated 
+rendering.

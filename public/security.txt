@@ -1,0 +1,4 @@
+Contact: mailto:ammonwk@gmail.com
+Expires: 2028-12-22T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://juliascope.com/.well-known/security.txt

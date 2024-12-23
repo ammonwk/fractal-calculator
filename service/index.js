@@ -189,6 +189,7 @@ app.post(
                 encodedState,
                 createdAt: new Date(),
             });
+            console.log(`[${new Date().toISOString()}] Saving fractal ${id.toString()}...`);
             res.json({ id: id.toString() });
         } catch (error) {
             console.error('Error saving fractal', error);
@@ -298,6 +299,7 @@ app.post('/api/getFractalName', fractalNameRateLimiter, async (req, res) => {
 
 // Return the application's default page if the path is unknown
 app.use((_req, res) => {
+    console.log(`[${new Date().toISOString()}] Unknown path requested: ${_req.path}. Sending index.html...`);
     res.sendFile('index.html', { root: 'public' });
 });
 

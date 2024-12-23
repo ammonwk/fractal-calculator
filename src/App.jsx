@@ -9,6 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<FractalLoader />} />
         <Route path="/share/:id" element={<FractalLoader />} />
+        <Route path="*" element={<FractalLoader />} />
       </Routes>
     </Router>
   );
