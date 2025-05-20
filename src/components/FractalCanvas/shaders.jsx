@@ -2,26 +2,26 @@
 
 // Color options for dynamic fragment shader generation
 export const colorOptions = (zoom) => ({
-  'Rainbow': `
+    'Rainbow': `
             float r = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 0.0);
             float g = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 2.0);
             float b = 0.5 + 0.5 * cos(3.0 + smoothColor * 0.15 + 4.0);
             outColor = vec4(r, g, b, 1.0);
         `,
-  'Snowflake': `
+    'Snowflake': `
             float logScale = log(1.0 + smoothColor) / log(800.0);
             float r = 1.0 - logScale;
             float g = 1.0 - logScale * 0.5;
             float b = 1.0;
             outColor = vec4(r, g, b, 1.0);
         `,
-  'Watercolors': `
+    'Watercolors': `
             float r = 0.7 + 0.2 * sin(smoothColor * 0.2);
             float g = 0.5 + 0.3 * cos(smoothColor * 0.1);
             float b = 0.8 + 0.1 * sin(smoothColor * 0.3);
             outColor = vec4(r, g, b, 0.8);
         `,
-  'Twinkling Stars': `
+    'Twinkling Stars': `
             float brightness = smoothColor / 800.0;
             // Make twinkle more subtle and only affect brighter parts
             float twinkle = 1.0 + 0.5 * sin(u_time * 5.0 + smoothColor * 2.5); // Reduced frequency and amplitude
@@ -31,7 +31,7 @@ export const colorOptions = (zoom) => ({
             color = mix(color, color * twinkle, step(0.25, brightness)); // Apply twinkle only to brighter parts
             outColor = vec4(color, 1.0);
         `,
-  'Psychedelics': `
+    'Psychedelics': `
             float pulse = abs(sin(u_time + smoothColor * 0.1));
             float r = 0.5 + 0.5 * cos(smoothColor * 0.1 + 0.0);
             float g = 0.5 + 0.5 * cos(smoothColor * 0.1 + 2.0);
@@ -39,7 +39,7 @@ export const colorOptions = (zoom) => ({
             vec3 color = vec3(r, g, b) * pulse;
             outColor = vec4(color, 1.0);
         `,
-  'Fire and Embers': `
+    'Fire and Embers': `
             // Dynamic flickering for fire
             float flicker = 0.7 + 0.3 * sin(u_time * 3.9 + smoothColor * 5.0); // 35% slower
             float r = 1.0 * flicker;
@@ -68,7 +68,7 @@ export const colorOptions = (zoom) => ({
 
             outColor = vec4(finalColor, 1.0);
         `,
-  'Ocean Waves': `
+    'Ocean Waves': `
             // Dynamic movement for surf
             float wave = 0.6 + 0.4 * sin(u_time * 2.0 + smoothColor * 1.5);
             float r = 0.2 + 0.3 * wave;
@@ -86,7 +86,7 @@ export const colorOptions = (zoom) => ({
 
             outColor = vec4(waveColor, 1.0);
         `,
-  'Aurora Borealis': `
+    'Aurora Borealis': `
             float shift = 0.5 + 0.5 * sin(u_time * 1.0 + smoothColor * 0.8); // Aurora movement and spacing
             float r = 0.4 + 0.6 * shift * (0.5 + 0.5 * cos(smoothColor * 1.5 + u_time * 0.5));
             float g = 0.7 + 0.3 * shift * (0.5 + 0.5 * sin(smoothColor * 1.2 - u_time * 0.6));
@@ -106,7 +106,7 @@ export const colorOptions = (zoom) => ({
 
             outColor = vec4(auroraColor, 1.0);
         `,
-  'The Matrix': `
+    'The Matrix': `
             float column = mod(gl_FragCoord.x / u_resolution.x, 1.0); // Keep column stationary
             float row = mod(gl_FragCoord.y / u_resolution.y + u_time * 0.5, 1.0); // Move rows downward
             float character = step(0.95, fract(sin(smoothColor * 100.0 + u_time * 30.0) * 43758.5453123)); // Randomized character effect
@@ -189,6 +189,88 @@ vec2 complexSqrt(vec2 z) {
     float r = length(z);
     float angle = atan(z.y, z.x);
     return vec2(sqrt((r + z.x) / 2.0), sign(z.y) * sqrt((r - z.x) / 2.0));
+}
+
+// Complex arcsine
+vec2 complexAsin(vec2 z) {
+    vec2 iz = vec2(-z.y, z.x); // i*z
+    vec2 sqrtOneMinusZSquared = complexSqrt(vec2(1.0, 0.0) - complexMul(z, z));
+    return complexMul(vec2(0.0, -1.0), complexLog(iz + sqrtOneMinusZSquared));
+}
+
+// Complex arccosine
+vec2 complexAcos(vec2 z) {
+    vec2 sqrtOneMinusZSquared = complexSqrt(vec2(1.0, 0.0) - complexMul(z, z));
+    vec2 logTerm = complexLog(z + complexMul(vec2(0.0, 1.0), sqrtOneMinusZSquared));
+    return complexMul(vec2(0.0, -1.0), logTerm);
+}
+
+// Complex arctangent
+vec2 complexAtan(vec2 z) {
+    vec2 iz = vec2(-z.y, z.x); // i*z
+    return complexMul(vec2(0.0, 0.5), complexLog(complexDiv(vec2(1.0, 0.0) + iz, vec2(1.0, 0.0) - iz)));
+}
+
+// Complex hyperbolic sine
+vec2 complexSinh(vec2 z) {
+    return vec2(sinh(z.x) * cos(z.y), cosh(z.x) * sin(z.y));
+}
+
+// Complex hyperbolic cosine
+vec2 complexCosh(vec2 z) {
+    return vec2(cosh(z.x) * cos(z.y), sinh(z.x) * sin(z.y));
+}
+
+// Complex hyperbolic tangent
+vec2 complexTanh(vec2 z) {
+    return complexDiv(complexSinh(z), complexCosh(z));
+}
+
+// Complex inverse hyperbolic sine
+vec2 complexAsinh(vec2 z) {
+    return complexLog(z + complexSqrt(complexMul(z, z) + vec2(1.0, 0.0)));
+}
+
+// Complex inverse hyperbolic cosine
+vec2 complexAcosh(vec2 z) {
+    return complexLog(z + complexSqrt(complexMul(z, z) - vec2(1.0, 0.0)));
+}
+
+// Complex inverse hyperbolic tangent
+vec2 complexAtanh(vec2 z) {
+    return complexMul(vec2(0.5, 0.0), complexLog(complexDiv(vec2(1.0, 0.0) + z, vec2(1.0, 0.0) - z)));
+}
+
+// Factorial function (approximation for real numbers, not defined for complex)
+float factorial(float n) {
+    if (n <= 0.0) {
+        return 1.0;
+    } else if (n > 170.0) {
+        return 1.0 / 0.0;
+    } else {
+        float result = 1.0;
+        for (float i = 2.0; i <= n; i += 1.0) {
+            result *= i;
+        }
+        return result;
+    }
+}
+
+// Greatest Common Divisor (GCD) function
+float gcd(float a, float b) {
+    a = abs(a);
+    b = abs(b);
+    while (b > 0.0) {
+        float temp = b;
+        b = mod(a, b);
+        a = temp;
+    }
+    return a;
+}
+
+// Least Common Multiple (LCM) function
+float lcm(float a, float b) {
+    return (a * b) / gcd(a, b);
 }
 
 void main() {

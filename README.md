@@ -81,6 +81,133 @@ npm run dev
 - [ ] Float-Float rendering for high-zoom states
 - [ ] Fractal generation techniques beyond iterating on imaginary equations
 
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph Frontend
+        App[App.jsx]
+        FractalLoader[FractalLoader.jsx]
+        
+        subgraph MainComponents
+            FractalEditor[FractalEditor.jsx]
+            FractalCanvas[FractalCanvas.jsx]
+            Controls[Controls.jsx]
+        end
+        
+        subgraph ControlComponents
+            TopBar[TopBar.jsx]
+            InfoButton[InfoButton.jsx]
+            InfoModal[InfoModal.jsx]
+            ShareModal[ShareModal.jsx]
+            RightSideBar[RightSideBar.jsx]
+            ToggleSwitch[ToggleSwitch.jsx]
+            Tooltip[Tooltip.jsx]
+            VariableControl[VariableControl.jsx]
+        end
+        
+        subgraph EquationParser
+            Tokenizer[tokenizing.jsx]
+            Parser[parsing.jsx]
+            GLSLTranslator[translateToGLSL.jsx]
+        end
+        
+        subgraph WebGLComponents
+            Shaders[shaders.jsx]
+            WebGLUtils[WebGLUtils.jsx]
+            DraggableBead[DraggableBead.jsx]
+            DragZoomHook[useDragAndZoom.jsx]
+        end
+    end
+
+    subgraph Backend
+        ExpressServer[Express Server]
+        subgraph Databases
+            FractalsDB[(fractals DB)]
+            MetricsDB[(metrics DB)]
+        end
+        
+        subgraph Services
+            FractalService[FractalService]
+            EncodingUtils[encoding.js]
+            GeminiAI[Google Gemini AI]
+        end
+
+        subgraph Security
+            Helmet[Helmet]
+            RateLimit[Rate Limiter]
+            CORS[CORS]
+        end
+    end
+
+    subgraph Config
+        BabelConfig[babel.config.js]
+        PostCSSConfig[postcss.config.js]
+        TailwindConfig[tailwind.config.js]
+        ViteConfig[vite.config.js]
+    end
+
+    %% Main Application Flow
+    App --> FractalLoader
+    FractalLoader --> FractalEditor
+    FractalEditor --> FractalCanvas
+    FractalEditor --> Controls
+    FractalEditor --> RightSideBar
+
+    %% Control Component Relationships
+    Controls --> TopBar
+    Controls --> InfoButton
+    Controls --> VariableControl
+    Controls --> ToggleSwitch
+    Controls --> Tooltip
+    InfoButton --> InfoModal
+    Controls --> ShareModal
+
+    %% Equation Processing Pipeline
+    Controls --> Tokenizer
+    Tokenizer --> Parser
+    Parser --> GLSLTranslator
+    GLSLTranslator --> Shaders
+
+    %% WebGL Implementation
+    FractalCanvas --> Shaders
+    FractalCanvas --> WebGLUtils
+    FractalCanvas --> DraggableBead
+    FractalCanvas --> DragZoomHook
+
+    %% Backend Communication
+    FractalService --> ExpressServer
+    ExpressServer --> FractalsDB
+    ExpressServer --> MetricsDB
+    ExpressServer --> GeminiAI
+    FractalLoader --> FractalService
+    FractalService --> EncodingUtils
+
+    %% Security Middleware
+    ExpressServer --> Helmet
+    ExpressServer --> RateLimit
+    ExpressServer --> CORS
+
+    %% Configuration
+    BabelConfig -.-> Frontend
+    PostCSSConfig -.-> Frontend
+    TailwindConfig -.-> Frontend
+    ViteConfig -.-> Frontend
+
+    %% Styling
+    classDef component fill:#f9f,stroke:#333,stroke-width:2px
+    classDef service fill:#bbf,stroke:#333,stroke-width:2px
+    classDef database fill:#bfb,stroke:#333,stroke-width:2px
+    classDef config fill:#fdb,stroke:#333,stroke-width:2px
+    classDef security fill:#fbb,stroke:#333,stroke-width:2px
+    
+    class App,FractalLoader,FractalEditor,FractalCanvas,Controls component
+    class FractalService,EncodingUtils,GeminiAI service
+    class FractalsDB,MetricsDB database
+    class BabelConfig,PostCSSConfig,TailwindConfig,ViteConfig config
+    class Helmet,RateLimit,CORS security
+```
+
 ## License
 
 MIT © Ammon Kunzler

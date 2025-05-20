@@ -129,6 +129,13 @@ function FractalEditor({
         setIterations(newIterations);
     };
 
+    const [runtimeError, setRuntimeError] = useState(null);
+
+    const handleRuntimeError = (error) => {
+        console.error('Runtime error:', error);
+        setRuntimeError(error);
+    };
+
     return (
         <div className="relative-container">
             <TopBar />
@@ -148,6 +155,7 @@ function FractalEditor({
                     inJuliaSetMode={isJuliaSet}
                     juliaParam={juliaParam}
                     setJuliaParam={setJuliaParam}
+                    onError={handleRuntimeError}
                 />
             </div>
             <Controls
@@ -180,9 +188,11 @@ function FractalEditor({
                 setGraphicsQuality={handleGraphicsQualityChange}
                 isJuliaSet={isJuliaSet}
                 handleToggleChange={() => setIsJuliaSet((prev) => !prev)}
-                handleSaveFractal={handleSaveFractal} // Pass down the modified handleSaveFractal
-                setShareModalVisible={setShareModalVisible} // Pass down the setShareModalVisible
-                setShareUrl={setShareUrl} // Pass down the setShareUrl
+                handleSaveFractal={handleSaveFractal}
+                setShareModalVisible={setShareModalVisible}
+                setShareUrl={setShareUrl}
+                runtimeError={runtimeError}
+                onRuntimeErrorClear={() => setRuntimeError(null)}
             />
             <RightSideBar
                 onShare={async (event) => {

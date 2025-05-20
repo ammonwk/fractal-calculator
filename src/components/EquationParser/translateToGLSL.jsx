@@ -136,6 +136,15 @@ export function translateToGLSL(node) {
                             return handleIntegerExponentiation(left, parseInt(right.glsl, 10));
                         }
                     }
+                    case 'mod': {
+                        if (left.isComplex || right.isComplex) {
+                            throw new Error("Complex modulo is not supported in this version.");
+                        }
+                        return {
+                            glsl: `mod(${left.glsl}, ${right.glsl})`,
+                            isComplex: false
+                        };
+                    }
                     default:
                         throw new Error(`Unsupported operator "${node.operator}". Please use only supported operators (+, -, *, /, ^).`);
                 }
@@ -151,17 +160,58 @@ export function translateToGLSL(node) {
                 };
             }
             case 'function': {
-                const funcArg = processNode(node.argument);
-                if (['sin', 'cos', 'tan', 'exp', 'log', 'sqrt'].includes(node.name)) {
-                    if (funcArg.isComplex) {
-                        return handleComplexFunction(node.name, funcArg);
+                const funcName = node.name;
+                if (['gcd', 'lcm', 'mod'].includes(funcName)) {
+                    // Handle multi-argument functions
+                    const args = node.args.map(arg => processNode(arg));
+                    if (args.some(arg => arg.isComplex)) {
+                        throw new Error(`Complex arguments are not supported for ${funcName}.`);
                     }
                     return {
-                        glsl: `${node.name}(${funcArg.glsl})`,
+                        glsl: `${funcName}(${args.map(arg => arg.glsl).join(', ')})`,
                         isComplex: false
                     };
                 } else {
-                    throw new Error(`Unsupported function "${node.name}". Please use one of the supported functions: sin, cos, tan, exp, log, sqrt.`);
+                    // Handle single-argument functions
+                    const funcArg = processNode(node.argument);
+                    if (['sin', 'cos', 'tan', 'exp', 'log', 'sqrt', 'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'arcsinh', 'arccosh', 'arctanh', 'sec', 'csc', 'cot', 'sech', 'csch', 'coth'].includes(node.name)) {
+                        if (funcArg.isComplex) {
+                            return handleComplexFunction(node.name, funcArg);
+                        }
+                        return {
+                            glsl: `${node.name}(${funcArg.glsl})`,
+                            isComplex: false
+                        };
+                    } else if (['floor', 'ceil', 'round', 'sign'].includes(node.name)) {
+                        if (funcArg.isComplex) {
+                            return {
+                                glsl: `vec2(${node.name}(${funcArg.glsl}.x), ${node.name}(${funcArg.glsl}.y))`,
+                                isComplex: true
+                            };
+                        }
+                        return {
+                            glsl: `${node.name}(${funcArg.glsl})`,
+                            isComplex: false
+                        };
+                    } else if (node.name === 'gamma') {
+                        if (funcArg.isComplex) {
+                            throw new Error("Complex gamma function is not supported in this version.");
+                        }
+                        return {
+                            glsl: `gamma(${funcArg.glsl})`, // Assuming you have a gamma function in your GLSL environment
+                            isComplex: false
+                        };
+                    } else if (['erf', 'erfc'].includes(node.name)) {
+                        if (funcArg.isComplex) {
+                            throw new Error(`Complex ${node.name} function is not supported in this version.`);
+                        }
+                        return {
+                            glsl: `${node.name}(${funcArg.glsl})`, // Assuming you have erf and erfc functions in your GLSL environment
+                            isComplex: false
+                        };
+                    } else {
+                        throw new Error(`Unsupported function "${node.name}". Please use one of the supported functions.`);
+                    }
                 }
             }
             case 'variable': {
@@ -214,6 +264,21 @@ export function translateToGLSL(node) {
                         isComplex: false
                     };
                 }
+            }
+            // Handle factorial
+            case 'factorial': {
+                const { value } = node;
+                const operand = processNode(value);
+
+                if (operand.isComplex) {
+                    throw new Error("Factorial of complex numbers is not supported in this version.");
+                }
+
+                // Implement factorial using a loop (for reasonable integer values)
+                return {
+                    glsl: `factorial(${operand.glsl})`,
+                    isComplex: false
+                };
             }
             default: {
                 throw new Error(`Unsupported node type "${node.type}". This likely indicates a bug in the parser.`);
@@ -274,6 +339,84 @@ export function translateToGLSL(node) {
                 );
             case 'sqrt':
                 return handleComplexSqrt(arg);
+            case 'arcsin':
+            case 'asin':
+                return cacheExpression(
+                    `complexAsin(${argStr})`,
+                    true
+                );
+            case 'arccos':
+            case 'acos':
+                return cacheExpression(
+                    `complexAcos(${argStr})`,
+                    true
+                );
+            case 'arctan':
+            case 'atan':
+                return cacheExpression(
+                    `complexAtan(${argStr})`,
+                    true
+                );
+            case 'sinh':
+                return cacheExpression(
+                    `complexSinh(${argStr})`,
+                    true
+                );
+            case 'cosh':
+                return cacheExpression(
+                    `complexCosh(${argStr})`,
+                    true
+                );
+            case 'tanh':
+                return cacheExpression(
+                    `complexTanh(${argStr})`,
+                    true
+                );
+            case 'arcsinh':
+                return cacheExpression(
+                    `complexAsinh(${argStr})`,
+                    true
+                );
+            case 'arccosh':
+                return cacheExpression(
+                    `complexAcosh(${argStr})`,
+                    true
+                );
+            case 'arctanh':
+                return cacheExpression(
+                    `complexAtanh(${argStr})`,
+                    true
+                );
+            case 'sec':
+                return cacheExpression(
+                    `complexDiv(vec2(1.0, 0.0), complexCos(${argStr}))`,
+                    true
+                );
+            case 'csc':
+                return cacheExpression(
+                    `complexDiv(vec2(1.0, 0.0), complexSin(${argStr}))`,
+                    true
+                );
+            case 'cot':
+                return cacheExpression(
+                    `complexDiv(complexCos(${argStr}), complexSin(${argStr}))`,
+                    true
+                );
+            case 'sech':
+                return cacheExpression(
+                    `complexDiv(vec2(1.0, 0.0), complexCosh(${argStr}))`,
+                    true
+                );
+            case 'csch':
+                return cacheExpression(
+                    `complexDiv(vec2(1.0, 0.0), complexSinh(${argStr}))`,
+                    true
+                );
+            case 'coth':
+                return cacheExpression(
+                    `complexDiv(complexCosh(${argStr}), complexSinh(${argStr}))`,
+                    true
+                );
             default:
                 throw new Error(`Function ${name} is not supported for complex numbers.`);
         }

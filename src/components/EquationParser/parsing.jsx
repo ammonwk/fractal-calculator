@@ -17,7 +17,7 @@ export function parse(tokens) {
 
     function parseTerm() {
         let node = parseFactor();
-        while (index < tokens.length && (tokens[index] === '*' || tokens[index] === '/' || tokens[index] === '\\frac')) {
+        while (index < tokens.length && (tokens[index] === '*' || tokens[index] === '/' || tokens[index] === '\\frac' || tokens[index] === 'mod')) {
             const operator = tokens[index++];
             const right = parseFactor();
             node = { type: 'binary', operator, left: node, right };
@@ -27,7 +27,7 @@ export function parse(tokens) {
 
     function parseFactor() {
         let node = parseExponent();
-        while (index < tokens.length && (tokens[index] === '^')) {
+        while (index < tokens.length && tokens[index] === '^') {
             const operator = tokens[index++];
             const right = parseExponent();
             node = { type: 'binary', operator, left: node, right };
@@ -41,6 +41,15 @@ export function parse(tokens) {
         }
 
         let token = tokens[index++];
+
+        // Handle factorial
+        if (index < tokens.length && tokens[index] === '!') {
+            index++; // Consume the '!'
+            return {
+                type: 'factorial',
+                value: { type: 'number', value: parseFloat(token) } // Create a proper number node
+            };
+        }
 
         // Handle absolute value
         if (token === '(\\left|') {
@@ -62,10 +71,32 @@ export function parse(tokens) {
         } else if (token === '\\sqrt') {
             const argument = parseFactor();
             return { type: 'sqrt', argument };
-        } else if (/(sin|cos|tan|exp|log|sqrt)/.test(token)) {
+        } else if (/(sin|cos|tan|exp|log|ln|arcsin|arccos|arctan|asin|acos|atan|sinh|cosh|tanh|arcsinh|arccosh|arctanh|sec|csc|cot|sech|csch|coth|gamma)/.test(token)) {
             const functionName = token.replace('\\', '');
-            const argument = parseFactor();
-            return { type: 'function', name: functionName, argument };
+            const isMultiArgFunction = ['gcd', 'lcm', 'mod'].includes(functionName);
+
+            if (isMultiArgFunction) {
+                if (tokens[index] !== '(') {
+                    throw new Error(`Missing opening parenthesis for multi-argument function "${functionName}".`);
+                }
+                index++; // Consume the '('
+
+                const args = [];
+                while (tokens[index] !== ')') {
+                    args.push(parseExpression());
+                    if (tokens[index] === ',') {
+                        index++; // Consume the ','
+                    } else if (tokens[index] !== ')') {
+                        throw new Error(`Missing comma or closing parenthesis in argument list for "${functionName}".`);
+                    }
+                }
+                index++; // Consume the ')'
+
+                return { type: 'function', name: functionName, args };
+            } else {
+                const argument = parseFactor();
+                return { type: 'function', name: functionName, argument };
+            }
         } else if (/[A-Za-z_]\w*/.test(token)) {
             if (tokens[index] === '(') {
                 index++;

@@ -93,6 +93,8 @@ function Controls({
     setGraphicsQuality,
     isJuliaSet,
     handleToggleChange,
+    runtimeError,
+    onErrorClear
 }) {
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -120,7 +122,27 @@ function Controls({
             }
         `;
         document.head.appendChild(style);
-        return () => document.head.removeChild(style);
+
+        // Auto-commands for MathQuill
+        const autoCommands = 'sqrt floor ceil round sign mod abs gamma erf erfc';
+        if (window.mathQuillInstance) {
+            window.mathQuillInstance.config({
+                autoCommands: autoCommands,
+                handlers: {
+                    edit: handleInputChange
+                }
+            });
+        }
+
+        return () => {
+            document.head.removeChild(style);
+            if (window.mathQuillInstance) {
+                window.mathQuillInstance.config({
+                    autoCommands: '',
+                    handlers: {}
+                });
+            }
+        };
     }, []);
 
     // Input handling
@@ -130,11 +152,14 @@ function Controls({
         clearTimeout(timeoutRef.current);
 
         try {
+            console.log('Input:', inputEquation);
             const tokens = tokenize(inputEquation, Object.keys(variables));
+            console.log('Tokens:', tokens);
             const replacedTokens = tokens.map(token =>
                 (variables.hasOwnProperty(token) ? variables[token].value : token)
             );
             const syntaxTree = parse(replacedTokens);
+            console.log('Syntax Tree:', syntaxTree);
             const glslCode = translateToGLSL(syntaxTree);
             console.log(glslCode);
             onEquationChange(glslCode);
@@ -223,6 +248,8 @@ function Controls({
         setTooltip({ ...tooltip, visible: false });
     };
 
+    const displayError = error || runtimeError;
+
     return (
         <div className={`canvas-container ${isCollapsed ? 'w-16 delay-300' : 'w-64 delay-0'} transition-width duration-300`}>
             <div className={`fixed w-64 flex-none transition-all duration-300 ease-in-out 
@@ -260,18 +287,21 @@ function Controls({
                                     latex={latexInput}
                                     onChange={handleInputChange}
                                     className="w-full bg-gray-700/50 backdrop-blur-sm 
-                                            border border-gray-600 rounded-lg p-3
-                                            focus-within:border-blue-500 transition-colors"
+                                border border-gray-600 rounded-lg p-3
+                                focus-within:border-blue-500 transition-colors"
+                                    mathquillDidMount={instance => {
+                                        window.mathQuillInstance = instance;
+                                    }}
                                 />
-                                {error && (
+                                {displayError && (
                                     <div className="mt-2 p-3 bg-red-500/10 border border-red-500/20 
                                                 rounded-lg text-red-400 flex items-center justify-between">
-                                        <span>{error.message}</span>
-                                        {error.variableName && (
+                                        <span>{displayError.message}</span>
+                                        {displayError.variableName && (
                                             <button
                                                 className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 
                                                         rounded-md transition-colors"
-                                                onClick={() => handleCreateVariable(error.variableName)}
+                                                onClick={() => handleCreateVariable(displayError.variableName)}
                                             >
                                                 Create Variable
                                             </button>

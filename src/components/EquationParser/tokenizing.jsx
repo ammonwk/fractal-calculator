@@ -1,4 +1,9 @@
-const knownFunctions = ['sqrt', 'sin', 'cos', 'tan', 'exp', 'log'];
+const knownFunctions = [
+    'sqrt', 'sin', 'cos', 'tan', 'exp', 'log', 'ln',
+    'arcsin', 'arccos', 'arctan', 'asin', 'acos', 'atan',
+    'sinh', 'cosh', 'tanh', 'arcsinh', 'arccosh', 'arctanh',
+    'sec', 'csc', 'cot', 'sech', 'csch', 'coth', 'gamma'
+];
 const allowedVariables = ['z', 'c', 'i'];
 
 // spacing and formatting commands to ignore
@@ -61,7 +66,7 @@ function isDigit(char) {
  * @returns {boolean}
  */
 function isOperator(char) {
-    return /[+\-*/^=]/.test(char);
+    return /[+\-*/^=!]/.test(char);
 }
 
 /**
@@ -70,7 +75,7 @@ function isOperator(char) {
  * @returns {boolean}
  */
 function isParenthesis(char) {
-    return /[(){}]/.test(char);
+    return /[(){}\[\]]/.test(char);
 }
 
 /**
@@ -94,7 +99,7 @@ function processFrac(tokens, start) {
         throw new Error(`Expected '(' after '\\frac' for numerator at position ${i}, found '${tokens[i].value}'.`);
     }
     i++; // Skip '('
-    const numeratorResult = extractGroup(tokens, i);
+    const numeratorResult = extractGroup(tokens, i, '(', ')');
     const numeratorTokens = numeratorResult.tokens;
     i = numeratorResult.newIndex;
 
@@ -108,7 +113,7 @@ function processFrac(tokens, start) {
         throw new Error(`Expected '(' after '\\frac{numerator}' for denominator at position ${i}, found '${tokens[i].value}'.`);
     }
     i++; // Skip '('
-    const denominatorResult = extractGroup(tokens, i);
+    const denominatorResult = extractGroup(tokens, i, '(', ')');
     const denominatorTokens = denominatorResult.tokens;
     i = denominatorResult.newIndex;
 
@@ -133,32 +138,33 @@ function processFrac(tokens, start) {
     return { tokens: transformed, newIndex: i };
 }
 
-
 /**
- * Extracts a group of tokens enclosed by matching parentheses.
+ * Extracts a group of tokens enclosed by matching parentheses, braces, or brackets.
  * @param {Array<Object>} tokens - The list of tokens.
  * @param {number} start - The starting index (after opening parenthesis).
+ * @param {string} openChar - The opening character ('(', '{', or '[').
+ * @param {string} closeChar - The closing character (')', '}', or ']').
  * @returns {Object} - An object containing the extracted tokens and the new index.
  */
-function extractGroup(tokens, start) {
+function extractGroup(tokens, start, openChar, closeChar) {
     let group = [];
-    let braceCount = 1;
+    let parenCount = 1;
     let i = start;
 
-    while (i < tokens.length && braceCount > 0) {
+    while (i < tokens.length && parenCount > 0) {
         const tok = tokens[i];
         if (tok.type === 'parenthesis') {
-            if (tok.value === '(') braceCount++;
-            else if (tok.value === ')') braceCount--;
+            if (tok.value === openChar) parenCount++;
+            else if (tok.value === closeChar) parenCount--;
         }
-        if (braceCount > 0) {
+        if (parenCount > 0) {
             group.push(tok);
         }
         i++;
     }
 
-    if (braceCount !== 0) {
-        throw new Error(`Unmatched parenthesis starting at position ${start - 1}.`);
+    if (parenCount !== 0) {
+        throw new Error(`Unmatched '${openChar}' starting at position ${start - 1}.`);
     }
 
     return { tokens: group, newIndex: i };
@@ -241,7 +247,15 @@ export function tokenize(input, variables = []) {
             if (isConstant(cmd)) {
                 tokens.push({ type: 'constant', value: knownConstants[cmd] });
             } else if (isFunction(cmd)) {
-                tokens.push({ type: 'function', value: cmd });
+                // Handle functions with optional arguments (e.g., \sqrt[n]{x})
+                if (cmd === 'sqrt' && input[i] === '[') {
+                    const degreeResult = extractGroup(tokens, i + 1, '[', ']');
+                    const degree = processTokenList(degreeResult.tokens).join('');
+                    tokens.push({ type: 'function', value: cmd, degree });
+                    i = degreeResult.newIndex;
+                } else {
+                    tokens.push({ type: 'function', value: cmd });
+                }
             }
             // Handle special operators like \cdot
             else if (cmd === 'cdot') {
@@ -274,6 +288,33 @@ export function tokenize(input, variables = []) {
                     throw new Error(`Expected delimiter after \\${cmd} at position ${i}.`);
                 }
                 continue;
+            }
+            // Handle \log with base (e.g., \log_{10})
+            else if (cmd === 'log' && input[i] === '_') {
+                i++; // Skip the underscore
+                if (input[i] === '{') {
+                    const baseResult = extractGroup(tokens, i + 1, '{', '}');
+                    const base = processTokenList(baseResult.tokens).join('');
+                    tokens.push({ type: 'function', value: 'log', base });
+                    i = baseResult.newIndex;
+                } else {
+                    throw new Error(`Invalid base for \\log at position ${i}. Base should be enclosed in braces.`);
+                }
+            }
+            // Handle \text{func} commands
+            else if (cmd === 'text') {
+                if (input[i] === '{') {
+                    const funcNameResult = extractGroup(tokens, i + 1, '{', '}');
+                    const funcName = funcNameResult.tokens.map(t => t.value).join('');
+                    if (isFunction(funcName)) {
+                        tokens.push({ type: 'function', value: funcName });
+                        i = funcNameResult.newIndex;
+                    } else {
+                        throw new Error(`Unknown function '\\text{${funcName}}' at position ${start}.`);
+                    }
+                } else {
+                    throw new Error(`Invalid use of \\text at position ${i}. Function name should be enclosed in braces.`);
+                }
             }
             // Handle commands with arguments like \hspace{...}
             else if (ignoredCommands.includes(cmd)) {
@@ -370,6 +411,18 @@ export function tokenize(input, variables = []) {
 
         // Handle operators
         if (isOperator(char)) {
+            // Handle factorial
+            if (char === '!') {
+                // Ensure the factorial is preceded by a number, variable, or closing parenthesis
+                const prevToken = tokens.length > 0 ? tokens[tokens.length - 1] : null;
+                if (!prevToken || (prevToken.type !== 'number' && prevToken.type !== 'variable' && prevToken.value !== ')')) {
+                    throw new Error(`Invalid use of factorial operator '!' at position ${start}. It must follow a number, variable, or a closing parenthesis.`);
+                }
+                tokens.push({ type: 'operator', value: '!' });
+                i++;
+                continue;
+            }
+
             // Handle equals sign
             if (char === '=') {
                 throw new Error("This equation is what z_n+1 is set equal to, you can't use another equals.");

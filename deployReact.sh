@@ -1,4 +1,4 @@
-# ./deployReact.sh -k "C:\Users\ammon\Documents\Robotics-Programming\BYU\cs260\keys\production.pem" -h rmplanner.click -s simon
+# ./deployReact.sh -k "C:\Users\ammon\Documents\Robotics-Programming\BYU\cs260\keys\production.pem" -h rmplanner.click -s juliascope
 # ssh -i "C:\Users\ammon\Documents\Robotics-Programming\BYU\cs260\keys\production.pem" ubuntu@34.238.113.27
 # pm2 logs
 
@@ -46,7 +46,12 @@ ssh -i "$key" ubuntu@$hostname << ENDSSH
 bash -i
 cd services/${service}
 npm install
-pm2 restart ${service}
+if pm2 list | grep -q ${service}; then
+  pm2 restart ${service}
+else
+  pm2 start index.js --name ${service}
+  pm2 save
+fi
 ENDSSH
 
 # Step 5
