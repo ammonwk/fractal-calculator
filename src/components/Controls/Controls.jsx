@@ -6,6 +6,7 @@ import { translateToGLSL } from '../EquationParser/translateToGLSL';
 import VariableControl from './VariableControl';
 import ToggleSwitch from './ToggleSwitch';
 import Tooltip from './Tooltip';
+import RandomFractalButton from './RandomFractalButton';
 
 addMathquillStyles();
 
@@ -93,6 +94,11 @@ function Controls({
     setGraphicsQuality,
     isJuliaSet,
     handleToggleChange,
+    handleSaveFractal,
+    setShareModalVisible,
+    setShareUrl,
+    initialLatexInput = latexInput,
+    onLoadFractal
 }) {
     const [error, setError] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -263,6 +269,11 @@ function Controls({
                                             border border-gray-600 rounded-lg p-3
                                             focus-within:border-blue-500 transition-colors"
                                 />
+                                {latexInput === initialLatexInput && (
+                                    <div className="absolute top-3 right-3">
+                                        <RandomFractalButton location="editor" onLoadFractal={onLoadFractal} />
+                                    </div>
+                                )}
                                 {error && (
                                     <div className="mt-2 p-3 bg-red-500/10 border border-red-500/20 
                                                 rounded-lg text-red-400 flex items-center justify-between">

@@ -6,13 +6,14 @@ import FractalEditor from './FractalEditor';
 function FractalLoader() {
     const { id } = useParams();
     const [fractalState, setFractalState] = useState(null);
+    const [fractalId, setFractalId] = useState(id);
     const navigate = useNavigate();
     const DEFAULT_FRACTAL_ID = '673d51608439aa6cb7f6ef34';
 
     useEffect(() => {
         const loadFractal = async () => {
             try {
-                const loadedFractal = await fetchFractalById(id || DEFAULT_FRACTAL_ID);
+                const loadedFractal = await fetchFractalById(fractalId || DEFAULT_FRACTAL_ID);
                 console.log('Loaded fractal', loadedFractal);
                 setFractalState(loadedFractal);
             } catch (error) {
@@ -22,12 +23,19 @@ function FractalLoader() {
         };
 
         loadFractal();
-    }, [id, navigate]);
+    }, [fractalId, navigate]);
+
+    // Handler for loading a new fractal without page reload
+    const handleLoadFractal = (newFractalData, newFractalId) => {
+        setFractalId(newFractalId);
+        setFractalState(newFractalData);
+    };
 
     if (!fractalState) return <div>Loading...</div>;
 
     return (
         <FractalEditor
+            key={fractalId}
             initialInput={fractalState.input}
             initialEquation={fractalState.equation}
             initialIterations={fractalState.iterations}
@@ -40,6 +48,7 @@ function FractalLoader() {
             initialPixelSize={fractalState.pixelSize}
             initialIsJuliaSet={fractalState.inJuliaSetMode}
             initialJuliaParam={fractalState.juliaParam}
+            onLoadFractal={handleLoadFractal}
         />
     );
 }

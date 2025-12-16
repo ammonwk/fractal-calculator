@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FiShare2, FiHome, FiZoomIn, FiZoomOut, FiDownload, FiMaximize, FiMinimize } from 'react-icons/fi';
+import RandomFractalButton from './RandomFractalButton';
 
 const IconButton = ({ onClick, onMouseDown, onMouseUp, onMouseLeave, title, children, isActive }) => (
     <button
@@ -30,7 +31,8 @@ function RightSideBar({
     continuousZoom,
     setContinuousZoom,
     zoomRate,
-    setZoomRate
+    setZoomRate,
+    onLoadFractal
 }) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isHolding, setIsHolding] = useState(null);
@@ -193,6 +195,8 @@ function RightSideBar({
                 >
                     <FiDownload size={20} />
                 </IconButton>
+
+                <RandomFractalButton location="sidebar" onLoadFractal={onLoadFractal} />
             </div>
 
             <div className="flex-1" /> {/* Middle spacer */}

@@ -51,7 +51,7 @@ app.use((req, res, next) => {
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 10000,
     standardHeaders: true,
     legacyHeaders: false,
     trustProxy: true, // Enable trustProxy within rateLimit
@@ -69,6 +69,14 @@ app.use(cors(corsOptions));
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
+
+// Serve index.html with nonce injection
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public/index.html');
+    let html = fs.readFileSync(indexPath, 'utf8');
+    html = html.replace('<%= nonce %>', res.locals.nonce);
+    res.send(html);
+});
 
 let fractalsDb;
 let metricsDb;
@@ -89,6 +97,14 @@ const client = new MongoClient(mongoUri);
         // Create indexes for metrics collections
         await metricsDb.collection('pageVisits').createIndex({ date: 1 });
         await metricsDb.collection('uniqueVisitors').createIndex({ ip: 1 }, { unique: true });
+        
+        // Initialize randomFractals collection if it doesn't exist
+        const collections = await fractalsDb.listCollections({ name: 'randomFractals' }).toArray();
+        if (collections.length === 0) {
+            await fractalsDb.createCollection('randomFractals');
+            console.log('Created randomFractals collection');
+        }
+        
         console.log('Metrics indexes created successfully');
 
         // Start the server after successful DB connection
@@ -228,6 +244,144 @@ app.get(
     }
 );
 
+// API route to get a random fractal
+app.get('/api/randomFractal', async (req, res) => {
+    try {
+        const randomCollection = fractalsDb.collection('randomFractals');
+        const count = await randomCollection.countDocuments();
+        
+        if (count === 0) {
+            return res.status(500).json({ error: 'No random fractals available' });
+        }
+        
+        // Get a random document from the collection
+        const randomFractal = await randomCollection.aggregate([
+            { $sample: { size: 1 } }
+        ]).toArray();
+        
+        if (randomFractal.length === 0) {
+            return res.status(500).json({ error: 'Failed to retrieve random fractal' });
+        }
+        
+        res.json({ id: randomFractal[0].fractalId });
+    } catch (error) {
+        console.error('Error getting random fractal', error);
+        res.status(500).json({ error: 'Failed to get random fractal' });
+    }
+});
+
+// Simple authentication middleware for admin routes
+const authenticateAdmin = (req, res, next) => {
+    const { password } = req.body;
+    if (password === 'code82094') {
+        next();
+    } else {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+};
+
+// API route to get all fractals for admin
+app.post('/api/admin/getAllFractals', authenticateAdmin, async (req, res) => {
+    try {
+        const collection = fractalsDb.collection('fractals');
+        const randomCollection = fractalsDb.collection('randomFractals');
+        
+        // Get all fractals
+        const fractals = await collection.find({})
+            .sort({ createdAt: -1 })
+            .project({ _id: 1, createdAt: 1 })
+            .toArray();
+            
+        // Get IDs of fractals in the random pool
+        const randomFractalsIds = await randomCollection.find({})
+            .project({ fractalId: 1, _id: 0 })
+            .toArray();
+            
+        const randomFractalSet = new Set(randomFractalsIds.map(item => item.fractalId));
+        
+        // Mark fractals that are in the random pool
+        const mappedFractals = fractals.map(fractal => ({
+            id: fractal._id.toString(),
+            createdAt: fractal.createdAt,
+            isInRandomPool: randomFractalSet.has(fractal._id.toString())
+        }));
+        
+        res.json({ fractals: mappedFractals });
+    } catch (error) {
+        console.error('Error getting all fractals', error);
+        res.status(500).json({ error: 'Failed to get fractals' });
+    }
+});
+
+// API route to add fractal to random pool
+app.post('/api/admin/addToRandomPool', authenticateAdmin, 
+    body('fractalId').custom((value) => ObjectId.isValid(value)).withMessage('Invalid fractal ID'),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        
+        const { fractalId } = req.body;
+        
+        try {
+            // First check if fractal exists
+            const fractalCollection = fractalsDb.collection('fractals');
+            const fractal = await fractalCollection.findOne({ _id: new ObjectId(fractalId) });
+            
+            if (!fractal) {
+                return res.status(404).json({ error: 'Fractal not found' });
+            }
+            
+            // Then check if it's already in random pool
+            const randomCollection = fractalsDb.collection('randomFractals');
+            const existingEntry = await randomCollection.findOne({ fractalId });
+            
+            if (existingEntry) {
+                return res.json({ message: 'Fractal already in random pool' });
+            }
+            
+            // Add to random pool
+            await randomCollection.insertOne({ 
+                fractalId,
+                addedAt: new Date()
+            });
+            
+            res.json({ message: 'Added to random pool successfully' });
+        } catch (error) {
+            console.error('Error adding to random pool', error);
+            res.status(500).json({ error: 'Failed to add to random pool' });
+        }
+    }
+);
+
+// API route to remove fractal from random pool
+app.post('/api/admin/removeFromRandomPool', authenticateAdmin,
+    body('fractalId').custom((value) => ObjectId.isValid(value)).withMessage('Invalid fractal ID'),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        
+        const { fractalId } = req.body;
+        
+        try {
+            const randomCollection = fractalsDb.collection('randomFractals');
+            const result = await randomCollection.deleteOne({ fractalId });
+            
+            if (result.deletedCount === 0) {
+                return res.status(404).json({ error: 'Fractal not in random pool' });
+            }
+            
+            res.json({ message: 'Removed from random pool successfully' });
+        } catch (error) {
+            console.error('Error removing from random pool', error);
+            res.status(500).json({ error: 'Failed to remove from random pool' });
+        }
+    }
+);
+
 const nameRequestCache = new NodeCache();
 
 const fractalNameRateLimiter = (req, res, next) => {
@@ -300,7 +454,10 @@ app.post('/api/getFractalName', fractalNameRateLimiter, async (req, res) => {
 // Return the application's default page if the path is unknown
 app.use((_req, res) => {
     console.log(`[${new Date().toISOString()}] Unknown path requested: ${_req.path}. Sending index.html...`);
-    res.sendFile('index.html', { root: 'public' });
+    const indexPath = path.join(__dirname, 'public/index.html');
+    let html = fs.readFileSync(indexPath, 'utf8');
+    html = html.replace('<%= nonce %>', res.locals.nonce);
+    res.send(html);
 });
 
 // Error-handling middleware

@@ -20,7 +20,8 @@ function FractalEditor({
     initialFxaaIntensity,
     initialPixelSize,
     initialIsJuliaSet,
-    initialJuliaParam
+    initialJuliaParam,
+    onLoadFractal
 }) {
     const [input, setInput] = useState(initialInput);
     const [equation, setEquation] = useState(initialEquation);
@@ -183,6 +184,7 @@ function FractalEditor({
                 handleSaveFractal={handleSaveFractal} // Pass down the modified handleSaveFractal
                 setShareModalVisible={setShareModalVisible} // Pass down the setShareModalVisible
                 setShareUrl={setShareUrl} // Pass down the setShareUrl
+                onLoadFractal={onLoadFractal} // Pass down the load fractal handler
             />
             <RightSideBar
                 onShare={async (event) => {
@@ -207,6 +209,7 @@ function FractalEditor({
                 setContinuousZoom={setContinuousZoom}
                 zoomRate={zoomRate}
                 setZoomRate={setZoomRate}
+                onLoadFractal={onLoadFractal}
             />
             {shareModalVisible.visible && (
                 <ShareModal
